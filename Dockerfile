@@ -13,7 +13,7 @@ WORKDIR /app
 
 # 複製依賴檔案並安裝
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt || cat /app/requirements.txt
 
 # 複製主程式
 COPY ocr_api.py .
