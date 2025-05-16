@@ -1,24 +1,22 @@
-# 使用輕量級的 Python 基底映像
 FROM python:3.10-slim
 
-# 安裝 libgl1、libgomp（這是 PaddleOCR 需要的依賴）
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libgomp1 \
-    libglib2.0-0 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-# 設定工作目錄
 WORKDIR /app
 
-# 複製依賴檔案並安裝
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt || cat /app/requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# 複製主程式
 COPY . .
 
-# 啟動 FastAPI 應用
-CMD ["python", "-m", "uvicorn", "ocr_api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Railway 會自動指定 PORT 環境變數，我們讀它
+ENV PORT=8000
+EXPOSE $PORT
+
+# 用 uvicorn 啟動 FastAPI 應用，注意：不要手寫 port 數字
+CMD ["uvicorn", "ocr_api:app", "--host", "0.0.0.0", "--port", "8000"]
 
