@@ -1,19 +1,23 @@
+# 使用輕量級的 Python 基底映像
 FROM python:3.10-slim
 
-# 安裝系統套件（包含 libGL.so.1）
+# 安裝 libgl1、libgomp（這是 PaddleOCR 需要的依賴）
 RUN apt-get update && apt-get install -y \
     libgl1 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    libgomp1 \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
-# 建立工作目錄
+# 設定工作目錄
 WORKDIR /app
 
-# 複製需求檔與程式碼
+# 複製依賴檔案並安裝
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-COPY . .
+# 複製主程式
+COPY ocr_api.py .
 
-# 啟動 FastAPI
+# 啟動 FastAPI 應用
 CMD ["uvicorn", "ocr_api:app", "--host", "0.0.0.0", "--port", "8000"]
+
