@@ -1,5 +1,5 @@
 fastapi
-uvicorn==0.24.0
+uvicorn[standard]
 paddleocr
 paddlepaddle
 faster-whisper
@@ -7,6 +7,3 @@ python-multipart
 pillow
 opencv-python-headless
 numpy
-libGL
-libgthread
-libpaddle
