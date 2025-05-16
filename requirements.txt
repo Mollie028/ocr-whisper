@@ -7,3 +7,6 @@ python-multipart
 pillow
 opencv-python-headless
 numpy
+libGL
+libgthread
+libpaddle
