@@ -16,8 +16,8 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt || cat /app/requirements.txt
 
 # 複製主程式
-COPY "ocr_api:app" .
+COPY . .
 
 # 啟動 FastAPI 應用
-CMD ["python", "ocr_api:app"]
+CMD ["uvicorn", "ocr_api:app", "--host", "0.0.0.0", "--port", "8000"]
 
