@@ -19,5 +19,5 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY ocr_api.py .
 
 # 啟動 FastAPI 應用
-CMD ["uvicorn", "ocr_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "ocr_api.py"]
 
