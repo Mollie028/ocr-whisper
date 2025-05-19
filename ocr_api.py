@@ -24,7 +24,7 @@ app.add_middleware(
 
 # 初始化模型（使用輕量版）
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
-whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
+whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
@@ -47,7 +47,8 @@ async def whisper_endpoint(file: UploadFile = File(...)):
             tmp_path = tmp.name
 
         segments, _ = whisper_model.transcribe(
-            tmp_path, language="zh", beam_size=5, vad_filter=True
+            tmp_path, language="zh", beam_size=1, vad_filter=True,
+            max_new_tokens=512
         )
         text = " ".join([seg.text.strip() for seg in segments])
         return {"text": text}
