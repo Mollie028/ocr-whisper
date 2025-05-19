@@ -10,6 +10,7 @@ import cv2
 import io
 import tempfile
 import os
+from opencc import OpenCC  
 import uvicorn
 
 app = FastAPI()
@@ -27,6 +28,7 @@ app.add_middleware(
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+cc = OpenCC('s2t')
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
@@ -53,6 +55,7 @@ async def whisper_endpoint(file: UploadFile = File(...)):
             max_new_tokens=440
         )
         text = " ".join([seg.text.strip() for seg in segments])
+        text = cc.convert(text)
         return {"text": text}
     except Exception as e:
         return {"error": str(e)}
