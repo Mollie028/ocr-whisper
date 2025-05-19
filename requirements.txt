@@ -7,3 +7,5 @@ python-multipart
 pillow
 opencv-python-headless
 numpy
+requests
+sentence-transformers
