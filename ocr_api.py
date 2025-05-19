@@ -38,6 +38,7 @@ async def ocr_endpoint(file: UploadFile = File(...)):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
         text = "\n".join([line[1][0] for box in result for line in box])
+        converted = cc.convert(raw_text)
         return {"text": text}
     except Exception as e:
         return {"error": str(e)}
