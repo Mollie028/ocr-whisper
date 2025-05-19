@@ -51,3 +51,5 @@ async def whisper_endpoint(file: UploadFile = File(...)):
         return {"text": text}
     except Exception as e:
         return {"error": str(e)}
+        
+
