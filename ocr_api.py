@@ -28,7 +28,7 @@ app.add_middleware(
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 embed_model = SentenceTransformer('all-MiniLM-L6-v2')
-cc = OpenCC('s2t')
+
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
@@ -37,6 +37,8 @@ async def ocr_endpoint(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
+        
+        cc = OpenCC('s2t')
         text = "\n".join([line[1][0] for box in result for line in box])
         converted = cc.convert(raw_text)
         return {"text": text}
