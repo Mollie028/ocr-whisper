@@ -9,6 +9,7 @@ import cv2
 import io
 import tempfile
 import os
+import uvicorn
 
 app = FastAPI()
 
@@ -55,7 +56,6 @@ async def whisper_endpoint(file: UploadFile = File(...)):
        
 
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.environ.get("PORT", 8000))  # 預設 8000，部署時會抓環境變數
     uvicorn.run(app, host="0.0.0.0", port=port)
 
