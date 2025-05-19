@@ -1,5 +1,5 @@
 # ocr_api.py
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
@@ -25,6 +25,7 @@ app.add_middleware(
 # 初始化模型（使用輕量版）
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+embed_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
@@ -54,6 +55,49 @@ async def whisper_endpoint(file: UploadFile = File(...)):
         return {"text": text}
     except Exception as e:
         return {"error": str(e)}
+@app.post("/extract")
+async def extract_fields(payload: dict):
+    text = payload.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing text")
+        
+# 路由 3: 欄位萃取（使用 LLaMA API）
+@app.post("/extract")
+async def extract_fields(payload: dict):
+    text = payload.get("text", "")
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing text")
+
+    # 可替換為自己的 LLaMA API
+    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、電話、公司、備註：\n{text}"
+    llama_api = "https://api.together.xyz/v1/completions"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    body = {
+        "model": "meta-llama/Llama-3-8b-chat-hf",
+        "prompt": llama_prompt,
+        "max_tokens": 300,
+        "temperature": 0.7,
+    }
+
+    res = requests.post(llama_api, headers=headers, json=body)
+    try:
+        parsed = res.json()["choices"][0]["text"]
+        return {"fields": parsed}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLaMA API 錯誤：{e}")
+
+# 路由 4: 向量轉換
+@app.post("/embed")
+async def embed_text(payload: dict):
+    note = payload.get("note", "")
+    if not note:
+        raise HTTPException(status_code=400, detail="Missing note text")
+    vector = embed_model.encode(note).tolist()
+    return {"vector": vector}
+
        
 
 if __name__ == "__main__":
