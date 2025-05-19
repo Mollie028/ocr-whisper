@@ -48,7 +48,7 @@ async def whisper_endpoint(file: UploadFile = File(...)):
 
         segments, _ = whisper_model.transcribe(
             tmp_path, language="zh", beam_size=1, vad_filter=True,
-            max_new_tokens=512
+            max_new_tokens=440
         )
         text = " ".join([seg.text.strip() for seg in segments])
         return {"text": text}
