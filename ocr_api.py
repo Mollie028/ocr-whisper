@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
 from PIL import Image
+from sentence_transformers import SentenceTransformer
 import numpy as np
 import cv2
 import io
