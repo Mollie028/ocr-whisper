@@ -9,4 +9,3 @@ opencv-python-headless
 numpy
 requests
 sentence-transformers
-opencc-python-reimplemented
