@@ -53,35 +53,32 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
         text = "\n".join([line[1][0] for box in result for line in box])
+        print("[📝 OCR文字擷取成功]：", text)
 
         # 向量化
         vector = embed_model.encode(text).tolist()
+        print("[📐 向量化完成]：", vector[:5], "...")
 
         # 儲存到 DB
         conn = get_conn()
         cur = conn.cursor()
-        try:
-            cur.execute(
-                """
-                INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
-                VALUES (%s, %s, %s)
-                RETURNING id
-                """,
-                (user_id, text, vector)
-            )
-            record_id = cur.fetchone()[0]
-            conn.commit()
-        except Exception as db_err:
-            conn.rollback()
-            raise HTTPException(status_code=500, detail=f"DB 寫入錯誤：{db_err}")
-        finally:
-            cur.close()
-            conn.close()
-
+        cur.execute(
+            """
+            INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
+            VALUES (%s, %s, %s)
+            RETURNING id
+            """,
+            (user_id, text, vector)
+        )
+        record_id = cur.fetchone()[0]
+        conn.commit()
+        print(f"[✅ 寫入成功] 新增 business_cards ID：{record_id}")
         return {"id": record_id, "text": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
 
+    except Exception as e:
+        print(f"[❌ OCR 發生錯誤]：{e}")
+        raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
+        
 # Whisper：語音轉文字
 @app.post("/whisper")
 async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
