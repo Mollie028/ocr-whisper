@@ -64,7 +64,7 @@ async def ocr_endpoint(file: UploadFile = File(...)):
             INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
             VALUES (%s, %s, %s)
             """,
-            (1, text, vector)  # 這裡先用 user_id = 1 做測試
+            (1, text, vector)  
         )
         conn.commit()
         cur.close()
@@ -128,13 +128,15 @@ async def extract_fields(payload: dict):
     }
 
     res = requests.post(llama_api, headers=headers, json=body)
+     parsed = res.json()["choices"][0]["text"]
     try:
-        parsed = res.json()["choices"][0]["text"]
-        return {"fields": parsed}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLaMA API 錯誤：{e}")
+        parsed_json = json.loads(parsed_text)
+    except:
+        parsed_json = {"raw": parsed_text}  # 解析失敗就回傳原始內容
 
-# 測試用 vector embedding API
+    return {"fields": parsed_json}
+
+#vector embedding API
 @app.post("/embed")
 async def embed_text(payload: dict):
     note = payload.get("note", "")
