@@ -128,7 +128,7 @@ async def extract_fields(payload: dict):
     if not text or not record_id:
         raise HTTPException(status_code=400, detail="Missing text or record_id")
 
-    # ✅ 更明確提示格式
+
     prompt = (
         "你是一個專業資料萃取助手，請從以下文字中擷取出名片欄位，"
         "並以 JSON 格式回傳，key 名稱請使用：\n"
