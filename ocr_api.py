@@ -53,11 +53,10 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
         text = "\n".join([line[1][0] for box in result for line in box])
-        print("[📝 OCR文字擷取成功]：", text)
+        vector = embed_model.encode(text).tolist()
 
         # 向量化
-        vector = embed_model.encode(text).tolist()
-        print("[📐 向量化完成]：", vector[:5], "...")
+        print("[向量化完成]：", vector[:5], "...")
 
         # 儲存到 DB
         conn = get_conn()
@@ -72,12 +71,21 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         )
         record_id = cur.fetchone()[0]
         conn.commit()
-        print(f"[✅ 寫入成功] 新增 business_cards ID：{record_id}")
-        return {"id": record_id, "text": text}
+        cur.close()
+        conn.close()
 
+        # 自動觸發 LLaMA 欄位萃取
+        llama_url = os.getenv("SELF_URL", "http://localhost:8000") + "/extract"
+        try:
+            llama_res = requests.post(llama_url, json={"text": text, "record_id": record_id})
+            print("📦 自動萃取結果：", llama_res.status_code, llama_res.text)
+        except Exception as llama_err:
+            print("⚠️ 自動 LLaMA 萃取失敗：", llama_err)
+
+        return {"id": record_id, "text": text}
     except Exception as e:
-        print(f"[❌ OCR 發生錯誤]：{e}")
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
+
         
 # Whisper：語音轉文字
 @app.post("/whisper")
@@ -126,6 +134,7 @@ async def extract_fields(payload: dict):
         "並以 JSON 格式回傳，key 名稱請使用：\n"
         "name, phone, email, title, company_name, address\n\n"
         "範例：\n"
+        
         '{\n  "name": "王小明",\n  "phone": "0912-345-678",\n  "email": "test@example.com",\n'
         '  "title": "業務經理",\n  "company_name": "新光保險",\n  "address": "台北市中山區xx路xx號"\n}\n\n'
         "請從以下內容中擷取：\n" + text
@@ -185,6 +194,14 @@ async def extract_fields(payload: dict):
         raise HTTPException(status_code=500, detail=f"寫入資料庫失敗：{e}")
 
     return {"fields": parsed_json}
+
+@app.post("/embed")
+async def embed_text(payload: dict):
+    note = payload.get("note", "")
+    if not note:
+        raise HTTPException(status_code=400, detail="Missing note text")
+    vector = embed_model.encode(note).tolist()
+    return {"vector": vector}
 
 if __name__ == "__main__":
     import uvicorn
