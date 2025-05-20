@@ -128,7 +128,7 @@ async def extract_fields(payload: dict):
     }
 
     res = requests.post(llama_api, headers=headers, json=body)
-     parsed = res.json()["choices"][0]["text"]
+    parsed = res.json()["choices"][0]["text"]
     try:
         parsed_json = json.loads(parsed_text)
     except:
