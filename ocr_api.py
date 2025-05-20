@@ -12,11 +12,11 @@ import tempfile
 import os
 import requests
 import psycopg2
-import json
+from psycopg2.extras import Json
 
 app = FastAPI()
 
-# CORS
+# CORS 設定（讓 Streamlit 可以連線）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,20 +25,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 模型初始化
+# 初始化模型
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
-embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 
+# 連線設定：從 Railway 環境變數讀取 PostgreSQL
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "port": os.getenv("DB_PORT")
+}
+
+# 取得資料庫連線
 def get_conn():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT"),
-        sslmode="require"
-    )
+    return psycopg2.connect(**DB_CONFIG)
 
 # OCR：圖片轉文字
 @app.post("/ocr")
@@ -48,51 +51,26 @@ async def ocr_endpoint(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
+        text = "\n".join([line[1][0] for box in result for line in box])
 
-        raw_text = "\n".join([line[1][0] for box in result for line in box])
-        vector = embed_model.encode(raw_text).tolist()
+        # 向量化
+        vector = embed_model.encode(text).tolist()
 
-        # 欄位萃取
-        llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、公司、電話、職稱、Email、地址：\n{raw_text}"
-        llama_api = "https://api.together.xyz/v1/completions"
-        headers = {
-            "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
-            "Content-Type": "application/json"
-        }
-        body = {
-            "model": "meta-llama/Llama-3-8b-chat-hf",
-            "prompt": llama_prompt,
-            "max_tokens": 300,
-            "temperature": 0.7,
-        }
-        llama_res = requests.post(llama_api, headers=headers, json=body)
-        parsed_json = json.loads(llama_res.json()["choices"][0]["text"])
-
-        # 儲存 DB
+        # 儲存到 DB
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO business_cards (
-                user_id, name, company_name, phone, email, title, ocr_text, ocr_vector
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
+            VALUES (%s, %s, %s)
             """,
-            (
-                1,  # 測試 user_id
-                parsed_json.get("姓名", ""),
-                parsed_json.get("公司", ""),
-                parsed_json.get("電話", ""),
-                parsed_json.get("Email", ""),
-                parsed_json.get("職稱", ""),
-                raw_text,
-                vector
-            )
+            (1, text, vector)  
         )
         conn.commit()
         cur.close()
         conn.close()
 
-        return {"text": raw_text, "fields": parsed_json}
+        return {"text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -111,6 +89,7 @@ async def whisper_endpoint(file: UploadFile = File(...)):
         text = " ".join([seg.text.strip() for seg in segments])
         vector = embed_model.encode(text).tolist()
 
+        # 儲存到 DB
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
@@ -128,14 +107,14 @@ async def whisper_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 測試欄位萃取（獨立）
+# LLaMA 欄位萃取
 @app.post("/extract")
 async def extract_fields(payload: dict):
     text = payload.get("text", "")
     if not text:
         raise HTTPException(status_code=400, detail="Missing text")
 
-    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、公司、電話、職稱、Email、地址：\n{text}"
+    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、電話、公司、職稱、Email、地址：\n{text}"
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
@@ -149,9 +128,24 @@ async def extract_fields(payload: dict):
     }
 
     res = requests.post(llama_api, headers=headers, json=body)
+     parsed = res.json()["choices"][0]["text"]
     try:
-        parsed = res.json()["choices"][0]["text"]
-        parsed_json = json.loads(parsed)
-        return {"fields": parsed_json}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLaMA API 錯誤：{e}")
+        parsed_json = json.loads(parsed_text)
+    except:
+        parsed_json = {"raw": parsed_text}  # 解析失敗就回傳原始內容
+
+    return {"fields": parsed_json}
+
+#vector embedding API
+@app.post("/embed")
+async def embed_text(payload: dict):
+    note = payload.get("note", "")
+    if not note:
+        raise HTTPException(status_code=400, detail="Missing note text")
+    vector = embed_model.encode(note).tolist()
+    return {"vector": vector}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
