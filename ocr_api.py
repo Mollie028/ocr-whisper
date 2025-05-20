@@ -114,7 +114,7 @@ async def extract_fields(payload: dict):
     if not text:
         raise HTTPException(status_code=400, detail="Missing text")
 
-    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、電話、公司、備註：\n{text}"
+    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、電話、公司、職稱、Email、地址：\n{text}"
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
