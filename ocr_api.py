@@ -3,21 +3,20 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
-from PIL import Image
 from sentence_transformers import SentenceTransformer
+from PIL import Image
 import numpy as np
 import cv2
 import io
 import tempfile
 import os
-import uvicorn
 import requests
 import psycopg2
-import json
+from psycopg2.extras import Json
 
 app = FastAPI()
 
-# 允許跨來源存取（給 Streamlit 用）
+# CORS 設定（讓 Streamlit 可以連線）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,38 +25,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 初始化模型（使用輕量版）
+# 初始化模型
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
-embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 
+# 連線設定：從 Railway 環境變數讀取 PostgreSQL
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "dbname": os.getenv("DB_NAME"),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
-    "port": int(os.getenv("DB_PORT", 5432))
+    "port": os.getenv("DB_PORT")
 }
 
-def save_to_postgres(text, vector):
-    try:
-        conn = psycopg2.connect(**DB_CONFIG, sslmode='require')
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS ocr_data (
-                id SERIAL PRIMARY KEY,
-                content TEXT,
-                embedding VECTOR(384)
-            );
-        """)
-        cur.execute("INSERT INTO ocr_data (content, embedding) VALUES (%s, %s)", (text, vector))
-        conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print("❌ PostgreSQL 儲存失敗：", e)
+# 取得資料庫連線
+def get_conn():
+    return psycopg2.connect(**DB_CONFIG)
 
-
+# OCR：圖片轉文字
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
     try:
@@ -65,12 +51,30 @@ async def ocr_endpoint(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
-        
         text = "\n".join([line[1][0] for box in result for line in box])
+
+        # 向量化
+        vector = embed_model.encode(text).tolist()
+
+        # 儲存到 DB
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
+            VALUES (%s, %s, %s)
+            """,
+            (1, text, vector)  # 這裡先用 user_id = 1 做測試
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
         return {"text": text}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
+# Whisper：語音轉文字
 @app.post("/whisper")
 async def whisper_endpoint(file: UploadFile = File(...)):
     try:
@@ -80,28 +84,36 @@ async def whisper_endpoint(file: UploadFile = File(...)):
             tmp_path = tmp.name
 
         segments, _ = whisper_model.transcribe(
-            tmp_path, language="zh", beam_size=1, vad_filter=True,
-            max_new_tokens=440
+            tmp_path, language="zh", beam_size=1, vad_filter=True, max_new_tokens=440
         )
         text = " ".join([seg.text.strip() for seg in segments])
-        text = cc.convert(text)
+        vector = embed_model.encode(text).tolist()
+
+        # 儲存到 DB
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO voice_notes (user_id, transcribed_text, transcribed_vector)
+            VALUES (%s, %s, %s)
+            """,
+            (1, text, vector)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
         return {"text": text}
     except Exception as e:
-        return {"error": str(e)}
-@app.post("/extract")
-async def extract_fields(payload: dict):
-    text = payload.get("text", "")
-    if not text:
-        raise HTTPException(status_code=400, detail="Missing text")
-        
-# 路由 3: 欄位萃取（使用 LLaMA API）
+        raise HTTPException(status_code=500, detail=str(e))
+
+# LLaMA 欄位萃取
 @app.post("/extract")
 async def extract_fields(payload: dict):
     text = payload.get("text", "")
     if not text:
         raise HTTPException(status_code=400, detail="Missing text")
 
-    # 可替換為自己的 LLaMA API
     llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、電話、公司、備註：\n{text}"
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
@@ -122,7 +134,7 @@ async def extract_fields(payload: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLaMA API 錯誤：{e}")
 
-# 路由 4: 向量轉換
+# 測試用 vector embedding API
 @app.post("/embed")
 async def embed_text(payload: dict):
     note = payload.get("note", "")
@@ -131,11 +143,7 @@ async def embed_text(payload: dict):
     vector = embed_model.encode(note).tolist()
     return {"vector": vector}
 
-       
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))  # 預設 8000，部署時會抓環境變數
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-        
-
