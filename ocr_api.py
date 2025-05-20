@@ -111,10 +111,11 @@ async def whisper_endpoint(file: UploadFile = File(...)):
 @app.post("/extract")
 async def extract_fields(payload: dict):
     text = payload.get("text", "")
-    if not text:
-        raise HTTPException(status_code=400, detail="Missing text")
+    record_id = payload.get("record_id")  # 對應 business_cards 的 id 欄位
+    if not text or not record_id:
+        raise HTTPException(status_code=400, detail="Missing text or record_id")
 
-    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式：姓名、電話、公司、職稱、Email、地址：\n{text}"
+    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式（key 用英文）：name, phone, email, title, company_name, address：\n{text}"
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
@@ -123,16 +124,42 @@ async def extract_fields(payload: dict):
     body = {
         "model": "meta-llama/Llama-3-8b-chat-hf",
         "prompt": llama_prompt,
-        "max_tokens": 300,
+        "max_tokens": 512,
         "temperature": 0.7,
     }
 
-    res = requests.post(llama_api, headers=headers, json=body)
-    parsed = res.json()["choices"][0]["text"]
     try:
+        res = requests.post(llama_api, headers=headers, json=body)
+        parsed_text = res.json()["choices"][0]["text"]
         parsed_json = json.loads(parsed_text)
-    except:
-        parsed_json = {"raw": parsed_text}  # 解析失敗就回傳原始內容
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
+
+    # 更新資料庫中該筆資料
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE business_cards
+            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s, address = %s
+            WHERE id = %s
+            """,
+            (
+                parsed_json.get("name"),
+                parsed_json.get("phone"),
+                parsed_json.get("email"),
+                parsed_json.get("title"),
+                parsed_json.get("company_name"),
+                parsed_json.get("address"),
+                record_id
+            )
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"寫入資料庫失敗：{e}")
 
     return {"fields": parsed_json}
 
