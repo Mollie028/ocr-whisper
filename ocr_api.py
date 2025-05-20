@@ -15,7 +15,6 @@ import psycopg2
 from psycopg2.extras import Json
 import json
 
-
 app = FastAPI()
 
 # CORS 設定（讓 Streamlit 可以連線）
@@ -47,7 +46,7 @@ def get_conn():
 
 # OCR：圖片轉文字
 @app.post("/ocr")
-async def ocr_endpoint(file: UploadFile = File(...)):
+async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
@@ -61,26 +60,31 @@ async def ocr_endpoint(file: UploadFile = File(...)):
         # 儲存到 DB
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
-            VALUES (%s, %s, %s)
-            RETURNING id
-            """,
-            (text, vector)  
-        )
-        record_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
+        try:
+            cur.execute(
+                """
+                INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (user_id, text, vector)
+            )
+            record_id = cur.fetchone()[0]
+            conn.commit()
+        except Exception as db_err:
+            conn.rollback()
+            raise HTTPException(status_code=500, detail=f"DB 寫入錯誤：{db_err}")
+        finally:
+            cur.close()
+            conn.close()
 
         return {"id": record_id, "text": text}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
 
 # Whisper：語音轉文字
 @app.post("/whisper")
-async def whisper_endpoint(file: UploadFile = File(...)):
+async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
     try:
         contents = await file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
@@ -101,7 +105,7 @@ async def whisper_endpoint(file: UploadFile = File(...)):
             INSERT INTO voice_notes (user_id, transcribed_text, transcribed_vector)
             VALUES (%s, %s, %s)
             """,
-            (text, vector)
+            (user_id, text, vector)
         )
         conn.commit()
         cur.close()
@@ -115,11 +119,16 @@ async def whisper_endpoint(file: UploadFile = File(...)):
 @app.post("/extract")
 async def extract_fields(payload: dict):
     text = payload.get("text", "")
-    record_id = payload.get("record_id")  # 對應 business_cards 的 id 欄位
+    record_id = payload.get("record_id")
     if not text or not record_id:
         raise HTTPException(status_code=400, detail="Missing text or record_id")
 
-    llama_prompt = f"請從以下內容中萃取出欄位，回傳 JSON 格式（key 用英文）：name, phone, email, title, company_name, address：\n{text}"
+    llama_prompt = (
+        f"請從以下名片資訊中萃取欄位，請只回傳 JSON 格式如下，不要加註解說明：\n"
+        f'{"name": "...", "phone": "...", "email": "...", "title": "...", "company_name": "...", "address": "..."}\n\n'
+        f"內容：\n{text}"
+    )
+
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
