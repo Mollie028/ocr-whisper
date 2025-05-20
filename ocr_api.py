@@ -13,6 +13,8 @@ import os
 import requests
 import psycopg2
 from psycopg2.extras import Json
+import json
+
 
 app = FastAPI()
 
@@ -63,14 +65,16 @@ async def ocr_endpoint(file: UploadFile = File(...)):
             """
             INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
             VALUES (%s, %s, %s)
+            RETURNING id
             """,
-            (1, text, vector)  
+            (text, vector)  
         )
+        record_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
 
-        return {"text": text}
+        return {"id": record_id, "text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -97,7 +101,7 @@ async def whisper_endpoint(file: UploadFile = File(...)):
             INSERT INTO voice_notes (user_id, transcribed_text, transcribed_vector)
             VALUES (%s, %s, %s)
             """,
-            (1, text, vector)
+            (text, vector)
         )
         conn.commit()
         cur.close()
