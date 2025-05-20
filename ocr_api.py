@@ -120,10 +120,15 @@ async def extract_fields(payload: dict):
     if not text or not record_id:
         raise HTTPException(status_code=400, detail="Missing text or record_id")
 
-    llama_prompt = (
-        f"請從以下名片資訊中萃取欄位，請只回傳 JSON 格式如下，不要加註解說明：\n"
-        f'{"name": "...", "phone": "...", "email": "...", "title": "...", "company_name": "...", "address": "..."}\n\n'
-        f"內容：\n{text}"
+    # ✅ 更明確提示格式
+    prompt = (
+        "你是一個專業資料萃取助手，請從以下文字中擷取出名片欄位，"
+        "並以 JSON 格式回傳，key 名稱請使用：\n"
+        "name, phone, email, title, company_name, address\n\n"
+        "範例：\n"
+        '{\n  "name": "王小明",\n  "phone": "0912-345-678",\n  "email": "test@example.com",\n'
+        '  "title": "業務經理",\n  "company_name": "新光保險",\n  "address": "台北市中山區xx路xx號"\n}\n\n'
+        "請從以下內容中擷取：\n" + text
     )
 
     llama_api = "https://api.together.xyz/v1/completions"
@@ -133,19 +138,27 @@ async def extract_fields(payload: dict):
     }
     body = {
         "model": "meta-llama/Llama-3-8b-chat-hf",
-        "prompt": llama_prompt,
+        "prompt": prompt,
         "max_tokens": 512,
-        "temperature": 0.7,
+        "temperature": 0.3,  # 降低隨機性
     }
 
     try:
         res = requests.post(llama_api, headers=headers, json=body)
-        parsed_text = res.json()["choices"][0]["text"]
-        parsed_json = json.loads(parsed_text)
+        parsed_text = res.json()["choices"][0]["text"].strip()
+        print("🧠 LLaMA 回應內容：", parsed_text)
+
+        # 🧪 嘗試找出 JSON 開始的位置
+        try:
+            start_idx = parsed_text.index("{")
+            parsed_json = json.loads(parsed_text[start_idx:])
+        except Exception:
+            parsed_json = {"raw": parsed_text}  # 解析失敗時回傳原文
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
 
-    # 更新資料庫中該筆資料
+    # 更新資料庫中欄位
     try:
         conn = get_conn()
         cur = conn.cursor()
@@ -172,15 +185,6 @@ async def extract_fields(payload: dict):
         raise HTTPException(status_code=500, detail=f"寫入資料庫失敗：{e}")
 
     return {"fields": parsed_json}
-
-#vector embedding API
-@app.post("/embed")
-async def embed_text(payload: dict):
-    note = payload.get("note", "")
-    if not note:
-        raise HTTPException(status_code=400, detail="Missing note text")
-    vector = embed_model.encode(note).tolist()
-    return {"vector": vector}
 
 if __name__ == "__main__":
     import uvicorn
