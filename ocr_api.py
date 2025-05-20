@@ -11,6 +11,9 @@ import io
 import tempfile
 import os
 import uvicorn
+import requests
+import psycopg2
+import json
 
 app = FastAPI()
 
@@ -27,6 +30,32 @@ app.add_middleware(
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "port": int(os.getenv("DB_PORT", 5432))
+}
+
+def save_to_postgres(text, vector):
+    try:
+        conn = psycopg2.connect(**DB_CONFIG, sslmode='require')
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ocr_data (
+                id SERIAL PRIMARY KEY,
+                content TEXT,
+                embedding VECTOR(384)
+            );
+        """)
+        cur.execute("INSERT INTO ocr_data (content, embedding) VALUES (%s, %s)", (text, vector))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("❌ PostgreSQL 儲存失敗：", e)
 
 
 @app.post("/ocr")
