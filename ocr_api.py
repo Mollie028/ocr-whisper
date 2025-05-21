@@ -49,8 +49,9 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        result = ocr_model.ocr(img)
+        result = ocr_model.ocr(img, cls=True)
         text = "\n".join([line[1][0] for box in result for line in box])
+        print("OCR 辨識結果：", text)
 
         # 儲存到 DB
         conn = get_conn()
