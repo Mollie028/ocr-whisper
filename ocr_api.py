@@ -38,15 +38,19 @@ def get_conn():
 
 def call_llama_and_update(text, record_id):
     prompt = (
-        "你是一個專業資料萃取助手，請從以下文字中擷取出名片欄位，"
-        "並以 JSON 格式回傳，key 名稱請使用：\n"
-        "name, phone, email, title, company_name, address\n\n"
-        "範例：\n"
-        '{\n  "name": "王小明",\n  "phone": "0912-345-678",\n  "email": "test@example.com",\n'
-        '  "title": "業務經理",\n  "company_name": "新光保險",\n  "address": "台北市中山區xx路xx號"\n}\n\n'
-        "請從以下內容中擷取：\n" + text
-    )
-
+    "請你只回傳以下名片資訊的 JSON 格式，不要有任何解釋或其他文字。"
+    "必須包含欄位：name, phone, email, title, company_name, address。\n"
+    "以下是範例格式（請直接用這格式回傳）：\n"
+    '{\n'
+    '  "name": "王小明",\n'
+    '  "phone": "0912-345-678",\n'
+    '  "email": "test@example.com",\n'
+    '  "title": "業務經理",\n'
+    '  "company_name": "新光保險",\n'
+    '  "address": "台北市中山區xx路xx號"\n'
+    '}\n\n'
+    "以下是名片文字內容：\n" + text
+)
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
