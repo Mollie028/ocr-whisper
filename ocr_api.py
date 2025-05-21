@@ -61,12 +61,12 @@ def call_llama_and_update(text, record_id):
 
     try:
         res = requests.post(llama_api, headers=headers, json=body)
-        res_json = res.json()
-        print("🧠 LLaMA 回傳原始內容：", res_json)
-
         parsed_text = res_json["choices"][0]["text"].strip()
         start_idx = parsed_text.index("{")
         parsed_json = json.loads(parsed_text[start_idx:])
+        print("🧠 LLaMA 回傳原始內容：", res_json)
+        
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
 
