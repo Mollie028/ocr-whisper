@@ -53,11 +53,10 @@ def call_llama_and_update(text, record_id):
         "Content-Type": "application/json"
     }
     body = {
-        "model": "meta-llama/Llama-3-8b-instruct",
+        "model": "meta-llama/Llama-3-8b-chat-hf",
         "prompt": prompt,
         "max_tokens": 512,
         "temperature": 0.3,
-        "stop": ["</s>"]
     }
 
     try:
