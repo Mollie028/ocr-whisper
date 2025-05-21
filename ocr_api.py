@@ -37,30 +37,32 @@ def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
 def call_llama_and_update(text, record_id):
-    prompt = (
-    "請你只回傳以下名片資訊的 JSON 格式，不要有任何解釋或其他文字。"
-    "必須包含欄位：name, phone, email, title, company_name, address。\n"
-    "以下是範例格式（請直接用這格式回傳）：\n"
-    '{\n'
-    '  "name": "王小明",\n'
-    '  "phone": "0912-345-678",\n'
-    '  "email": "test@example.com",\n'
-    '  "title": "業務經理",\n'
-    '  "company_name": "新光保險",\n'
-    '  "address": "台北市中山區xx路xx號"\n'
-    '}\n\n'
-    "以下是名片文字內容：\n" + text
-)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "你是一個專業資料萃取助手，請從以下文字中擷取出名片欄位，"
+                "並以 JSON 格式回傳，key 名稱請使用：name, phone, email, title, company_name, address。"
+                "不要加解釋、不要加註解，只回傳乾淨的 JSON 結果。"
+            )
+        },
+        {
+            "role": "user",
+            "content": text
+        }
+    ]
+    
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
         "Content-Type": "application/json"
     }
+    
     body = {
-        "model": "meta-llama/Llama-3-8b-chat-hf",
-        "prompt": prompt,
-        "max_tokens": 512,
+        "model": "meta-llama/Llama-3-8b-chat-hf",  # ✅ chat 模式模型
+        "messages": messages,
         "temperature": 0.3,
+        "max_tokens": 512
     }
 
     try:
@@ -68,9 +70,10 @@ def call_llama_and_update(text, record_id):
         res.raise_for_status()
         res_json = res.json()
 
-        print("\U0001f9a5 LLaMA 回應內容：", res_json)
+        print("LLaMA 回應內容：", res_json)
 
-        parsed_text = res_json.get("choices", [{}])[0].get("text", "").strip()
+        parsed_text = res_json["choices"][0]["message"]["content"].strip()
+        
         start_idx = parsed_text.find("{")
         if start_idx == -1:
             raise ValueError("LLaMA 回傳內容中找不到 JSON 起始符號 '{'")
