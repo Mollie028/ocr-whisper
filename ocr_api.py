@@ -101,10 +101,11 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO voice_notes (user_id, transcribed_text, transcribed_vector)
+            INSERT INTO voice_notes (user_id, transcribed_text)
             VALUES (%s, %s)
             """,
             (user_id, text)
+        )
         conn.commit()
         cur.close()
         conn.close()
