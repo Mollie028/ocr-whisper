@@ -61,9 +61,10 @@ def call_llama_and_update(text, record_id):
 
     try:
         res = requests.post(llama_api, headers=headers, json=body)
-        parsed_text = res_json["choices"][0]["text"].strip()
-        start_idx = parsed_text.index("{")
+        parsed_text = res.json()["choices"][0]["text"].strip()
+        start_idx = parsed_text.index("{")  # ✅ 使用正確的變數
         parsed_json = json.loads(parsed_text[start_idx:])
+
         print("🧠 LLaMA 回傳原始內容：", res_json)
         
         
