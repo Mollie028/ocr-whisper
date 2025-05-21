@@ -61,16 +61,19 @@ def call_llama_and_update(text, record_id):
 
     try:
         res = requests.post(llama_api, headers=headers, json=body)
-        parsed_text = res.json()["choices"][0]["text"].strip()
-        start_idx = parsed_text.index("{")  # ✅ 使用正確的變數
-        parsed_json = json.loads(parsed_text[start_idx:])
+        res.raise_for_status()
+        res_json = res.json()
 
-        print("🧠 LLaMA 回傳原始內容：", res_json)
-        
-        
+        print("\U0001f9a5 LLaMA 回應內容：", res_json)
+
+        parsed_text = res_json.get("choices", [{}])[0].get("text", "").strip()
+        start_idx = parsed_text.find("{")
+        if start_idx == -1:
+            raise ValueError("LLaMA 回傳內容中找不到 JSON 起始符號 '{'")
+        parsed_json = json.loads(parsed_text[start_idx:])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
-
+    
 
     try:
         conn = get_conn()
