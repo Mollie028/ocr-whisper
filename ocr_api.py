@@ -3,7 +3,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
-from sentence_transformers import SentenceTransformer
 from PIL import Image
 import numpy as np
 import cv2
@@ -29,7 +28,6 @@ app.add_middleware(
 # 初始化模型
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
-embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # 連線設定：從 Railway 環境變數讀取 PostgreSQL
 DB_CONFIG = {
@@ -53,10 +51,6 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img, cls=True)
         text = "\n".join([line[1][0] for box in result for line in box])
-        vector = embed_model.encode(text).tolist()
-
-        # 向量化
-        print("[向量化完成]：", vector[:5], "...")
 
         # 儲存到 DB
         conn = get_conn()
@@ -64,10 +58,10 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         cur.execute(
             """
             INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
-            VALUES (%s, %s, %s)
+            VALUES (%s, %s)
             RETURNING id
             """,
-            (user_id, text, vector)
+            (user_id, text)
         )
         record_id = cur.fetchone()[0]
         conn.commit()
@@ -100,7 +94,7 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
             tmp_path, language="zh", beam_size=1, vad_filter=True, max_new_tokens=440
         )
         text = " ".join([seg.text.strip() for seg in segments])
-        vector = embed_model.encode(text).tolist()
+       
 
         # 儲存到 DB
         conn = get_conn()
@@ -108,10 +102,9 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
         cur.execute(
             """
             INSERT INTO voice_notes (user_id, transcribed_text, transcribed_vector)
-            VALUES (%s, %s, %s)
+            VALUES (%s, %s)
             """,
-            (user_id, text, vector)
-        )
+            (user_id, text)
         conn.commit()
         cur.close()
         conn.close()
@@ -195,13 +188,6 @@ async def extract_fields(payload: dict):
 
     return {"fields": parsed_json}
 
-@app.post("/embed")
-async def embed_text(payload: dict):
-    note = payload.get("note", "")
-    if not note:
-        raise HTTPException(status_code=400, detail="Missing note text")
-    vector = embed_model.encode(note).tolist()
-    return {"vector": vector}
 
 if __name__ == "__main__":
     import uvicorn
