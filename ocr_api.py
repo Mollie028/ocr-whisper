@@ -57,7 +57,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO business_cards (user_id, ocr_text, ocr_vector)
+            INSERT INTO business_cards (user_id, ocr_text)
             VALUES (%s, %s)
             RETURNING id
             """,
