@@ -130,8 +130,16 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img)
-        text = "\n".join([line[1][0] for box in result for line in box])
-        cleaned_text = clean_ocr_text(text)
+
+        lines = []
+        for box in result:
+            for line in box:
+                text_piece = line[1][0].strip()
+                if text_piece and not any(c in text_piece.lower() for c in ["www", "fax", "網址", "傳真"]):
+                    lines.append(text_piece)
+        cleaned_text = "\n".join(lines)
+
+        print("🖼️ OCR 辨識結果：", cleaned_text)
 
         conn = get_conn()
         cur = conn.cursor()
