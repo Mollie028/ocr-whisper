@@ -37,20 +37,14 @@ def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
 def call_llama_and_update(text, record_id):
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "你是一個專業資料萃取助手，請從以下文字中擷取出名片欄位，"
-                "並以 JSON 格式回傳，key 名稱請使用：name, phone, email, title, company_name, address。"
-                "不要加解釋、不要加註解，只回傳乾淨的 JSON 結果。"
-            )
-        },
-        {
-            "role": "user",
-            "content": text
-        }
-    ]
+    prompt = (
+        "你只回傳以下名片資訊的 JSON 格式，不要有任何解釋或其他文字。\n"
+        "必須包含欄位：name, phone, email, title, company_name, address\n"
+        "以下是範例格式（請直接用這種格式回傳）：\n"
+        '{"name": "王小明", "phone": "0912-345-678", "email": "test@example.com", '
+        '"title": "業務經理", "company_name": "新光保險", "address": "台北市中山區xx路xx號"}'
+        "\n以下是名片文字內容：\n" + text
+    )
     
     llama_api = "https://api.together.xyz/v1/completions"
     headers = {
@@ -60,7 +54,7 @@ def call_llama_and_update(text, record_id):
     
     body = {
         "model": "meta-llama/Llama-3-8b-chat-hf",  # ✅ chat 模式模型
-        "messages": messages,
+        "prompt": prompt,
         "temperature": 0.3,
         "max_tokens": 512
     }
@@ -70,9 +64,8 @@ def call_llama_and_update(text, record_id):
         res.raise_for_status()
         res_json = res.json()
 
-        print("LLaMA 回應內容：", res_json)
-
-        parsed_text = res_json["choices"][0]["message"]["content"].strip()
+        parsed_text = res_json["choices"][0]["text"].strip()
+        print("🧠 LLaMA 回應：", parsed_text)
         
         start_idx = parsed_text.find("{")
         if start_idx == -1:
