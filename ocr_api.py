@@ -43,19 +43,36 @@ def call_llama_and_update(text, record_id):
         "Content-Type": "application/json"
     }
     body = {
-        "model": "meta-llama/Llama-3-8b-chat-hf",
-        "messages": [
-            {"role": "system", "content": "你是一個專業資料萃取助手，請回傳 JSON 格式的名片欄位"},
-            {"role": "user", "content": (
-                "請從以下文字中萃取欄位，格式為："
-                "{\"name\":\"\", \"phone\":\"\", \"email\":\"\", "
-                "\"title\":\"\", \"company_name\":\"\", \"address\":\"\"}"
-                f"\n\n{text}"
-            )}
-        ],
-        "temperature": 0.3,
-        "max_tokens": 512
-    }
+    "model": "meta-llama/Llama-3-8b-chat-hf",
+    "messages": [
+        {
+            "role": "system",
+            "content": (
+                "你是一個專業資料萃取助手，專門負責從中文名片中提取聯絡資訊。"
+                "請你只回傳 JSON 格式，不要有任何額外文字或說明。"
+                "欄位包括：name, phone, email, title, company_name, address。"
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                "請根據以下的名片內容，萃取並回傳對應欄位的 JSON，格式如下：\n"
+                "{\n"
+                "  \"name\": \"王小明\",\n"
+                "  \"phone\": \"0912-345-678\",\n"
+                "  \"email\": \"test@example.com\",\n"
+                "  \"title\": \"業務經理\",\n"
+                "  \"company_name\": \"新光保險\",\n"
+                "  \"address\": \"台北市中山區民權東路100號\"\n"
+                "}\n"
+                "\n名片內容如下：\n"
+                f"{text}"
+            )
+        }
+    ],
+    "temperature": 0.3,
+    "max_tokens": 512
+}
 
 
     try:
