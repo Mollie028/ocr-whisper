@@ -36,6 +36,15 @@ DB_CONFIG = {
 def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
+def clean_ocr_text(text):
+    lines = text.split("\n")
+    cleaned = []
+    for line in lines:
+        line = line.strip()
+        if line and not any(x in line.lower() for x in ["fax", "傳真", "www", "網址"]):
+            cleaned.append(line)
+    return "\n".join(cleaned)
+
 def call_llama_and_update(text, record_id):
     print("📄 傳送給 LLaMA 的 OCR 內容：\n", text)
     
@@ -52,8 +61,8 @@ def call_llama_and_update(text, record_id):
                 "content": (
                     "你是一個專業資料萃取助手，專門負責從中文名片中提取聯絡資訊。"
                     "請你只回傳 JSON 格式，不要有任何額外文字或說明。"
-                    "欄位包括：name, phone, email, title, company_name, address。"
-                     "若無法確定欄位內容，請填入 '未知'，但請勿留空。"
+                    "欄位包括：name, phone, email, title, company_name。"
+                    "若無法確定欄位內容，請填入 '未知'，但請勿留空。"
                 )
             },
             {
@@ -66,7 +75,6 @@ def call_llama_and_update(text, record_id):
                     "  \"email\": \"test@example.com\",\n"
                     "  \"title\": \"業務經理\",\n"
                     "  \"company_name\": \"新光保險\",\n"
-                    "  \"address\": \"台北市中山區民權東路100號\"\n"
                     "}\n"
                     "\n名片內容如下：\n"
                     f"{text}"
@@ -103,7 +111,7 @@ def call_llama_and_update(text, record_id):
         cur.execute(
             """
             UPDATE business_cards
-            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s, address = %s
+            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s,
             WHERE id = %s
             """,
             (
@@ -112,7 +120,6 @@ def call_llama_and_update(text, record_id):
                 parsed_json.get("email"),
                 parsed_json.get("title"),
                 parsed_json.get("company_name"),
-                parsed_json.get("address"),
                 record_id
             )
         )
