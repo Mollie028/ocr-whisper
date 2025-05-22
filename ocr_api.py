@@ -131,6 +131,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img)
         text = "\n".join([line[1][0] for box in result for line in box])
+        cleaned_text = clean_ocr_text(text)
 
         conn = get_conn()
         cur = conn.cursor()
