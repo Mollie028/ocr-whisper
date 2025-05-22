@@ -68,20 +68,14 @@ def call_llama_and_update(text, record_id):
             {
                 "role": "user",
                 "content": (
-                    "請根據以下的名片內容，萃取並回傳對應欄位的 JSON，格式如下：\n"
-                    "{\n"
-                    "  \"name\": \"王小明\",\n"
-                    "  \"phone\": \"0912-345-678\",\n"
-                    "  \"email\": \"test@example.com\",\n"
-                    "  \"title\": \"業務經理\",\n"
-                    "  \"company_name\": \"新光保險\",\n"
-                    "}\n"
-                    "\n名片內容如下：\n"
-                    f"{text}"
+                    "以下是名片 OCR 辨識結果，請根據內容回傳格式如下的 JSON："
+                    "{\"name\":\"王小明\",\"phone\":\"0912-345-678\",\"email\":\"test@example.com\","
+                    "\"title\":\"業務經理\",\"company_name\":\"新光保險\"}"
+                    f"\n{text}"
                 )
             }
         ],
-        "temperature": 0.3,
+        "temperature": 0.2,
         "max_tokens": 512
     }
 
@@ -111,7 +105,7 @@ def call_llama_and_update(text, record_id):
         cur.execute(
             """
             UPDATE business_cards
-            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s,
+            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s
             WHERE id = %s
             """,
             (
@@ -146,9 +140,9 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         cur.close()
         conn.close()
 
-        call_llama_and_update(text, record_id)
+        call_llama_and_update(cleaned_text, record_id)
 
-        return {"id": record_id, "text": text}
+        return {"id": record_id, "text": cleaned_text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
 
