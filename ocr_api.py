@@ -63,7 +63,7 @@ def call_llama_and_update(text, record_id):
         res.raise_for_status()
         res_json = res.json()
 
-         parsed_text = res_json["choices"][0]["message"]["content"].strip()
+        parsed_text = res_json["choices"][0]["message"]["content"].strip()
         print("🧠 LLaMA 回應：", parsed_text)
         
         start_idx = parsed_text.find("{")
