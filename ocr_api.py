@@ -37,6 +37,8 @@ def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
 def call_llama_and_update(text, record_id):
+    print("📄 傳送給 LLaMA 的 OCR 內容：\n", text)
+    
     llama_api = "https://api.together.xyz/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
@@ -51,6 +53,7 @@ def call_llama_and_update(text, record_id):
                     "你是一個專業資料萃取助手，專門負責從中文名片中提取聯絡資訊。"
                     "請你只回傳 JSON 格式，不要有任何額外文字或說明。"
                     "欄位包括：name, phone, email, title, company_name, address。"
+                     "若無法確定欄位內容，請填入 '未知'，但請勿留空。"
                 )
             },
             {
@@ -87,6 +90,9 @@ def call_llama_and_update(text, record_id):
         if start_idx == -1:
             raise ValueError("LLaMA 回傳內容中找不到 JSON 起始符號 '{'")
         parsed_json = json.loads(parsed_text[start_idx:])
+        if not any(parsed_json.values()):
+    raise HTTPException(status_code=400, detail="⚠️ LLaMA 回傳的所有欄位為空，可能是無法辨識。")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
     
