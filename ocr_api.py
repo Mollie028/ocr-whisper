@@ -134,15 +134,13 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         print("原始 OCR result：", result)
 
         lines = []
-        for box in result:
-            for line in box:
-                print("🔍 line =", line)
+        if result and isinstance(result[0], list):
+            for line in result[0]:
                 text_piece = line[1][0].strip()
                 if text_piece and not any(c in text_piece.lower() for c in ["www", "fax", "網址", "傳真"]):
                     lines.append(text_piece)
         cleaned_text = "\n".join(lines)
-
-        print("OCR 辨識結果：", cleaned_text)
+        print("🧼 OCR 清洗後結果：", cleaned_text)
 
         conn = get_conn()
         cur = conn.cursor()
