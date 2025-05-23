@@ -36,14 +36,14 @@ DB_CONFIG = {
 def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
-def clean_ocr_text(text):
-    lines = text.split("\n")
-    cleaned = []
-    for line in lines:
-        line = line.strip()
-        if line and not any(x in line.lower() for x in ["fax", "傳真", "www", "網址"]):
-            cleaned.append(line)
-    return "\n".join(cleaned)
+def clean_ocr_text(result):
+    lines = []
+    if result and isinstance(result[0], list):
+        for line in result[0]:
+            text_piece = line[1][0].strip()
+            if text_piece and not any(c in text_piece.lower() for c in ["www", "fax", "網址", "傳真"]):
+                lines.append(text_piece)
+    return "\n".join(lines)
 
 def call_llama_and_update(text, record_id):
     print("📄 傳送給 LLaMA 的 OCR 內容：\n", text)
@@ -68,10 +68,8 @@ def call_llama_and_update(text, record_id):
             {
                 "role": "user",
                 "content": (
-                    "以下是名片 OCR 辨識結果，請根據內容回傳格式如下的 JSON："
-                    "{\"name\":\"王小明\",\"phone\":\"0912-345-678\",\"email\":\"test@example.com\","
-                    "\"title\":\"業務經理\",\"company_name\":\"新光保險\"}"
-                    f"\n{text}"
+                    "以下是名片 OCR 辨識結果，請從中萃取聯絡資訊並回傳 JSON：\n"
+                    f"{text}\n\n⚠️ 請勿回傳範例格式，請依據上方內容填寫。"
                 )
             }
         ],
@@ -132,27 +130,21 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         result = ocr_model.ocr(img)
 
         print("原始 OCR result：", result)
+        final_text = clean_ocr_text(result)
+        print("🧼 OCR 清洗後結果：", final_text)
 
-        lines = []
-        if result and isinstance(result[0], list):
-            for line in result[0]:
-                text_piece = line[1][0].strip()
-                if text_piece and not any(c in text_piece.lower() for c in ["www", "fax", "網址", "傳真"]):
-                    lines.append(text_piece)
-        cleaned_text = "\n".join(lines)
-        print("🧼 OCR 清洗後結果：", cleaned_text)
 
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, cleaned_text))
+        cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, final_text))
         record_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
 
-        call_llama_and_update(cleaned_text, record_id)
+        call_llama_and_update(final_text, record_id)
 
-        return {"id": record_id, "text": cleaned_text}
+        return {"id": record_id, "text": final_text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
 
