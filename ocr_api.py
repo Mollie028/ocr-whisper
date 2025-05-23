@@ -59,17 +59,16 @@ def call_llama_and_update(text, record_id):
             {
                 "role": "system",
                 "content": (
-                    "你是一個專業資料萃取助手，專門負責從中文名片中提取聯絡資訊。"
-                    "請你只回傳 JSON 格式，不要有任何額外文字或說明。"
-                    "欄位包括：name, phone, email, title, company_name。"
-                    "若無法確定欄位內容，請填入 '未知'，但請勿留空。"
+                    "你是一個資料抽取助手，任務是從中文名片的 OCR 結果中找出聯絡資訊。"
+                    "請只回傳符合 JSON 格式的內容，"
+                    "欄位為：name（姓名）、phone（電話）、email（電子信箱）、title（職稱）、company_name（公司名稱）。"
+                    "請勿使用範例資料，請根據實際內容回傳資訊。無法判斷請填 '未知'。"
                 )
             },
             {
                 "role": "user",
                 "content": (
-                    "以下是名片 OCR 辨識結果，請從中萃取聯絡資訊並回傳 JSON：\n"
-                    f"{text}\n\n⚠️ 請勿回傳範例格式，請依據上方內容填寫。"
+                    f"OCR 辨識結果如下，請從中萃取聯絡資訊並回傳 JSON 格式：\n{text}"
                 )
             }
         ],
@@ -131,7 +130,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
 
         print("原始 OCR result：", result)
         final_text = clean_ocr_text(result)
-        print("🧼 OCR 清洗後結果：", final_text)
+        print("OCR 清洗後結果：", final_text)
 
 
         conn = get_conn()
