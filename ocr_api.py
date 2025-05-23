@@ -40,10 +40,16 @@ def clean_ocr_text(result):
     lines = []
     if result and isinstance(result[0], list):
         for line in result[0]:
-            text_piece = line[1][0].strip()
-            if text_piece and not any(c in text_piece.lower() for c in ["www", "fax", "網址", "傳真"]):
-                lines.append(text_piece)
-    return "\n".join(lines)
+            try:
+                text_piece = line[1][0].strip()
+                print("🔍 line text_piece：", repr(text_piece))
+                if text_piece:
+                   lines.append(text_piece)
+            except Exception as e:
+                print("⚠️ 擷取失敗：", e)
+    cleaned = "\n".join(lines)
+    print("🧼 最終清洗後內容：", repr(cleaned))
+    return cleaned
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
