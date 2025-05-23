@@ -59,17 +59,14 @@ def call_llama_and_update(text, record_id):
             {
                 "role": "system",
                 "content": (
-                    "你是一個資料抽取助手，任務是從中文名片的 OCR 結果中找出聯絡資訊。"
-                    "請只回傳符合 JSON 格式的內容，"
-                    "欄位為：name（姓名）、phone（電話）、email（電子信箱）、title（職稱）、company_name（公司名稱）。"
-                    "請勿使用範例資料，請根據實際內容回傳資訊。無法判斷請填 '未知'。"
+                    "你是一個專業資料萃取助手，負責從名片 OCR 文字中找出聯絡資訊。"
+                    "只回傳 JSON 格式，欄位包括 name, phone, email, title, company_name。"
+                    "請勿使用虛構資料或範例。無資料請填 '未知'。"
                 )
             },
             {
                 "role": "user",
-                "content": (
-                    f"OCR 辨識結果如下，請從中萃取聯絡資訊並回傳 JSON 格式：\n{text}"
-                )
+                "content": text
             }
         ],
         "temperature": 0.2,
@@ -83,12 +80,12 @@ def call_llama_and_update(text, record_id):
         res_json = res.json()
 
         parsed_text = res_json["choices"][0]["message"]["content"].strip()
-        print("🧠 LLaMA 回應：", parsed_text)
+        print("\n🧠 LLaMA 回應：\n", parsed_text)
         
-        start_idx = parsed_text.find("{")
-        if start_idx == -1:
-            raise ValueError("LLaMA 回傳內容中找不到 JSON 起始符號 '{'")
-        parsed_json = json.loads(parsed_text[start_idx:])
+        start = parsed_text.find("{")
+        end = parsed_text.rfind("}") + 1
+        parsed_json = json.loads(parsed_text[start:end])
+        
         if not any(parsed_json.values()):
             raise HTTPException(status_code=400, detail="⚠️ LLaMA 回傳的所有欄位為空，可能是無法辨識。")
 
@@ -128,10 +125,12 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         result = ocr_model.ocr(img)
 
-        print("原始 OCR result：", result)
+        print("\n原始 OCR result：", result)
         final_text = clean_ocr_text(result)
-        print("OCR 清洗後結果：", final_text)
+        print("\n🧼 OCR 清洗後結果：", final_text)
 
+        if not final_text:
+            raise HTTPException(status_code=400, detail="❌ OCR 沒有辨識出任何內容")
 
         conn = get_conn()
         cur = conn.cursor()
