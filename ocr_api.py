@@ -44,8 +44,9 @@ def clean_ocr_text(result):
                 # 新版 PaddleOCR 的 rec_texts 結果在 entry["rec_texts"]
                 texts = entry.get("rec_texts", [])
                 for t in texts:
-                    if t.strip():
-                        lines.append(t.strip())
+                    t = t.strip()
+                    if t and not any(x in t.lower() for x in ["www", "fax", "網址", "傳真"]):
+                        lines.append(t)
     except Exception as e:
         print("❌ clean_ocr_text 錯誤：", e)
     cleaned = "\n".join(lines)
