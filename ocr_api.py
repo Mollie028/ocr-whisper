@@ -87,7 +87,7 @@ async def extract_fields(payload: dict):
     if not text or not record_id:
         raise HTTPException(status_code=400, detail="❌ 缺少文字或 ID")
 
-    print("\n📤 傳送給 LLaMA 的內容：\n", text)
+    print("\n 傳送給 LLaMA 的內容：\n", text)
 
     llama_api = "https://api.together.xyz/v1/chat/completions"
     headers = {
@@ -120,7 +120,7 @@ async def extract_fields(payload: dict):
         res_json = res.json()
 
         parsed_text = res_json["choices"][0]["message"]["content"].strip()
-        print("\n🧠 LLaMA 回應：\n", parsed_text)
+        print("\n LLaMA 回應：\n", parsed_text)
 
         start = parsed_text.find("{")
         end = parsed_text.rfind("}") + 1
