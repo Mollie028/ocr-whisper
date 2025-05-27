@@ -92,7 +92,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
 
         return {"id": record_id, "text": final_text}
     except Exception as e:
-         import traceback
+        import traceback
         print("❌ OCR 發生錯誤：", e)
         traceback.print_exc()  # 這行會印出完整錯誤堆疊資訊（哪一行出錯）
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
