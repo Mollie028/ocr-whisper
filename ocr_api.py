@@ -59,6 +59,19 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+        # ✅ 圖片若太大就自動縮小，加快辨識速度
+        MAX_SIDE = 2000
+        height, width = img.shape[:2]
+        max_side = max(height, width)
+        if max_side > MAX_SIDE:
+            scale = MAX_SIDE / max_side
+            new_w = int(width * scale)
+            new_h = int(height * scale)
+            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            print(f"🔧 圖片已縮小至：{img.shape}")
+
+        # 🔍 執行 OCR
         result = ocr_model.ocr(img)
 
         print("\n原始 OCR result：", result)
@@ -68,6 +81,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         if not final_text:
             raise HTTPException(status_code=400, detail="❌ OCR 沒有辨識出任何內容")
 
+        # ✅ 寫入資料庫
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, final_text))
