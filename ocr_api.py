@@ -61,7 +61,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
         # ✅ 圖片若太大就自動縮小，加快辨識速度
-        MAX_SIDE = 2000
+        MAX_SIDE = 1600
         height, width = img.shape[:2]
         max_side = max(height, width)
         if max_side > MAX_SIDE:
