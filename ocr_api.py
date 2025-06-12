@@ -78,11 +78,12 @@ async def read_current_user(token: str = Depends(oauth2_scheme)):
     return {"username": username}
 
 DB_CONFIG = {
-    "host": os.getenv("DB_HOST"),
-    "dbname": os.getenv("DB_NAME"),
-    "user": os.getenv("DB_USER"),
+    "host":     os.getenv("DB_HOST"),
+    "port":     os.getenv("DB_PORT"),
+    "dbname":   os.getenv("DB_NAME"),
+    "user":     os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
-    "port": os.getenv("DB_PORT")
+    "sslmode":  "require"
 }
 
 def get_conn():
