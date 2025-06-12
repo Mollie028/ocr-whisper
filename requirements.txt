@@ -10,6 +10,6 @@ numpy
 requests
 sentence-transformers
 psycopg2-binary
-passlib
-python-jose
+passlib[bcrypt]
+python-jose[cryptography]
 
