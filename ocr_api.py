@@ -30,8 +30,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
-whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+
+SKIP_MODEL_LOAD = os.getenv("SKIP_MODEL_LOAD", "false").lower() == "true"
+
+if not SKIP_MODEL_LOAD:
+    ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
+    whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+else:
+    ocr_model = None
+    whisper_model = None
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 @app.post("/register", response_model=Token)
