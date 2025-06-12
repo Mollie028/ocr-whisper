@@ -1,4 +1,12 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+
+from fastapi.security import OAuth2PasswordBearer
+from backend.core.security import get_password_hash, verify_password, create_access_token, SECRET_KEY, ALGORITHM
+from backend.schemas.user import UserCreate, UserLogin, Token
+
+
+
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
@@ -24,6 +32,50 @@ app.add_middleware(
 
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+
+@app.post("/register", response_model=Token)
+async def register(user: UserCreate):
+    conn = get_conn()
+    cur = conn.cursor()
+    # 檢查帳號是否已存在
+    cur.execute("SELECT id FROM users WHERE username = %s", (user.username,))
+    if cur.fetchone():
+        cur.close(); conn.close()
+        raise HTTPException(status_code=400, detail="帳號已存在")
+    # 建立新使用者
+    hashed = get_password_hash(user.password)
+    cur.execute(
+        "INSERT INTO users (username, hashed_password) VALUES (%s, %s) RETURNING id",
+        (user.username, hashed)
+    )
+    user_id = cur.fetchone()[0]
+    conn.commit(); cur.close(); conn.close()
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/login", response_model=Token)
+async def login(user: UserLogin):
+    conn = get_conn()
+    cur = conn.cursor()
+    # 查帳號
+    cur.execute("SELECT hashed_password FROM users WHERE username = %s", (user.username,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    if not row or not verify_password(user.password, row[0]):
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/me")
+async def read_current_user(token: str = Depends(oauth2_scheme)):
+    # 只回傳 username，後面可以擴充角色、ID 等
+    from jose import jwt
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    username: str = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="無效的 token")
+    return {"username": username}
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
