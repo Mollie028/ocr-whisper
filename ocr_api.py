@@ -2,6 +2,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordBearer
 from backend.core.security import get_password_hash, verify_password, create_access_token, SECRET_KEY, ALGORITHM
 from backend.schemas.user import UserCreate, UserLogin, Token
+from jose import JWTError, jwt
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -86,13 +87,15 @@ async def login(user: UserLogin):
 
 @app.get("/me")
 async def read_current_user(token: str = Depends(oauth2_scheme)):
-    from jose import jwt
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    username: str = payload.get("sub")
-    if not username:
-        raise HTTPException(status_code=401, detail="無效的 token")
-    return {"username": username}
-
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="無效的 token")
+        return {"username": username}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token 解碼失敗")
+        
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
     if not ocr_model:
