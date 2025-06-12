@@ -17,15 +17,16 @@ import psycopg2
 import json
 import socket
 
-# ───── Debug DNS ──────
+# ───── Debug DNS（僅顯示，不實際連線）─────
 print("→ DEBUG: DB_HOST =", os.getenv("DB_HOST"))
 try:
     ip = socket.gethostbyname(os.getenv("DB_HOST") or "")
     print(f"→ DEBUG: DNS OK, {os.getenv('DB_HOST')} → {ip}")
 except Exception as e:
     print(f"→ DEBUG: DNS ERROR resolving {os.getenv('DB_HOST')}: {e}")
-# ─────────────────────
+# ──────────────────────────────
 
+# ───── 初始化 App ─────
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -34,56 +35,79 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+# ──────────────────────
 
-# ───── 是否跳過模型下載 ─────
+# ───── 模型控制變數 ─────
 SKIP_MODEL_LOAD = os.getenv("SKIP_MODEL_LOAD", "false").lower() == "true"
 if not SKIP_MODEL_LOAD:
+    from paddleocr import PaddleOCR
+    from faster_whisper import WhisperModel
     ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
     whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 else:
     ocr_model = None
     whisper_model = None
-# ───────────────────────
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
-
-DB_CONFIG = {
-    "host":     os.getenv("DB_HOST"),
-    "port":     os.getenv("DB_PORT"),
-    "dbname":   os.getenv("DB_NAME"),
-    "user":     os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "sslmode":  "require"
-}
-
-def get_conn():
-    return psycopg2.connect(**DB_CONFIG)
-
-# ───── 自動建表 ─────
-def init_db():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(50) UNIQUE NOT NULL,
-            hashed_password TEXT NOT NULL,
-            role VARCHAR(10) DEFAULT 'user',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-try:
-    init_db()
-    print("→ INFO: init_db succeeded")
-except Exception as e:
-    print(f"→ WARN: init_db failed: {e}")
 # ──────────────────────
 
-# 🧠 你的 API 功能（register、login、ocr、whisper、extract）這裡都不需要改動
-# ✅ 留下你原本的功能即可，保持穩定，避免再貼一大段干擾你辨識
+# ───── 假註冊（無資料庫）─────
+@app.post("/register", response_model=Token)
+async def register(user: UserCreate):
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-# ⚠️ 如果你要我一起幫你完整整理所有 endpoint，請再告訴我
+# ───── 假登入（無資料庫）─────
+@app.post("/login", response_model=Token)
+async def login(user: UserLogin):
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# ───── 驗證 Token ─────
+@app.get("/me")
+async def read_current_user(token: str = Depends(oauth2_scheme)):
+    from jose import jwt
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    username: str = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="無效的 token")
+    return {"username": username}
+
+# ───── 假 OCR（僅模型判斷）─────
+@app.post("/ocr")
+async def ocr_endpoint(file: UploadFile = File(...)):
+    if not ocr_model:
+        raise HTTPException(status_code=503, detail="OCR 模型未載入")
+    return {"id": 123, "text": "這是測試用的 OCR 回傳文字"}
+
+# ───── 假 Whisper（僅模型判斷）─────
+@app.post("/whisper")
+async def whisper_endpoint(file: UploadFile = File(...)):
+    if not whisper_model:
+        raise HTTPException(status_code=503, detail="Whisper 模型未載入")
+    return {"id": 456, "text": "這是測試用的語音文字"}
+
+# ───── 假 Extract（測串接）─────
+@app.post("/extract")
+async def extract_fields(payload: dict):
+    text = payload.get("text", "")
+    record_id = payload.get("id", 0)
+    if not text or not record_id:
+        raise HTTPException(status_code=400, detail="❌ 缺少文字或 ID")
+    return {
+        "id": record_id,
+        "fields": {
+            "name": "王小明",
+            "phone": "0912-345-678",
+            "email": "test@example.com",
+            "title": "工程師",
+            "company_name": "測試公司"
+        }
+    }
+
+# ───── 啟動 ─────
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+
