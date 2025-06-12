@@ -1,11 +1,10 @@
+from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordBearer
 from backend.core.security import get_password_hash, verify_password, create_access_token, SECRET_KEY, ALGORITHM
 from backend.schemas.user import UserCreate, UserLogin, Token
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from paddleocr import PaddleOCR
-from faster_whisper import WhisperModel
 from PIL import Image
 import numpy as np
 import cv2
@@ -13,7 +12,6 @@ import io
 import tempfile
 import os
 import requests
-import psycopg2
 import json
 import socket
 
@@ -35,8 +33,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
-# ──────────────────────
+
+# ➕ Swagger UI 支援 Bearer Token
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="AI 名片辨識與語音備註系統",
+        version="1.0.0",
+        description="Demo 測試版，不連接資料庫",
+        routes=app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "OAuth2PasswordBearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT"
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for method in path.values():
+            method["security"] = [{"OAuth2PasswordBearer": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+# ──────────────────────────────
 
 # ───── 模型控制變數 ─────
 SKIP_MODEL_LOAD = os.getenv("SKIP_MODEL_LOAD", "false").lower() == "true"
@@ -50,19 +74,16 @@ else:
     whisper_model = None
 # ──────────────────────
 
-# ───── 假註冊（無資料庫）─────
 @app.post("/register", response_model=Token)
 async def register(user: UserCreate):
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ───── 假登入（無資料庫）─────
 @app.post("/login", response_model=Token)
 async def login(user: UserLogin):
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# ───── 驗證 Token ─────
 @app.get("/me")
 async def read_current_user(token: str = Depends(oauth2_scheme)):
     from jose import jwt
@@ -72,21 +93,18 @@ async def read_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="無效的 token")
     return {"username": username}
 
-# ───── 假 OCR（僅模型判斷）─────
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
     if not ocr_model:
         raise HTTPException(status_code=503, detail="OCR 模型未載入")
     return {"id": 123, "text": "這是測試用的 OCR 回傳文字"}
 
-# ───── 假 Whisper（僅模型判斷）─────
 @app.post("/whisper")
 async def whisper_endpoint(file: UploadFile = File(...)):
     if not whisper_model:
         raise HTTPException(status_code=503, detail="Whisper 模型未載入")
     return {"id": 456, "text": "這是測試用的語音文字"}
 
-# ───── 假 Extract（測串接）─────
 @app.post("/extract")
 async def extract_fields(payload: dict):
     text = payload.get("text", "")
@@ -104,10 +122,7 @@ async def extract_fields(payload: dict):
         }
     }
 
-# ───── 啟動 ─────
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-
