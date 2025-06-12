@@ -88,6 +88,28 @@ DB_CONFIG = {
 def get_conn():
     return psycopg2.connect(**DB_CONFIG)
 
+
+# ── 自動建表，開發用 ───────────────────────────
+def init_db():
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        hashed_password TEXT NOT NULL,
+        role VARCHAR(10) DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+init_db()
+# ────────────────────────────────────────────────
+
+
 def clean_ocr_text(result):
     lines = []
     try:
