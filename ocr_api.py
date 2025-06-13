@@ -82,6 +82,7 @@ async def register(user: UserCreate):
 
 @app.post("/login", response_model=Token)
 async def login(user: UserLogin):
+    print("🔑 DEBUG: SECRET_KEY used in login:", SECRET_KEY)  # <== 新增這行
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
