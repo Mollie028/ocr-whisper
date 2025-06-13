@@ -88,14 +88,16 @@ async def login(user: UserLogin):
 
 @app.get("/me")
 async def read_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=401, detail="無效的 token")
-        return {"username": username}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token 解碼失敗")
+    from jose import jwt
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    username: str = payload.get("sub")
+    if not username:
+        raise HTTPException(status_code=401, detail="無效的 token")
+
+    # Demo 寫死角色：testuser 為 admin，其他是 user
+    role = "admin" if username == "testuser" else "user"
+    return {"username": username, "role": role}
+
         
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
