@@ -82,7 +82,7 @@ async def register(user: UserCreate):
 
 @app.post("/login", response_model=Token)
 async def login(user: UserLogin):
-    print("🔑 DEBUG: SECRET_KEY used in login:", SECRET_KEY)  # <== 新增這行
+    print("🔑 DEBUG: SECRET_KEY used in login:", SECRET_KEY)  
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -94,9 +94,10 @@ async def read_current_user(token: str = Depends(oauth2_scheme)):
     if not username:
         raise HTTPException(status_code=401, detail="無效的 token")
 
-    # Demo 寫死角色：testuser 為 admin，其他是 user
-    role = "admin" if username == "testuser" else "user"
-    return {"username": username, "role": role}
+    return {
+        "username": username,
+        "role": "admin" if username == "testuser" else "user"  
+    }
 
         
 @app.post("/ocr")
