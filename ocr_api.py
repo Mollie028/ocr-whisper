@@ -84,12 +84,20 @@ async def read_current_user(token: str = Depends(oauth2_scheme)):
 async def ocr_endpoint(file: UploadFile = File(...)):
     if not ocr_model:
         raise HTTPException(status_code=503, detail="OCR 模型未載入")
+    
+    try:
+        image = await file.read()
+        image_np = np.array(Image.open(io.BytesIO(image)).convert("RGB"))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"❌ 圖片讀取失敗：{str(e)}")
+    
+    try:
+        result = ocr_model.ocr(image_np, cls=True)
+        texts = [line[1][0] for line in result[0]]
+        return {"text": "\n".join(texts)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"❌ OCR 執行錯誤：{str(e)}")
 
-    image = await file.read()
-    image_np = np.array(Image.open(io.BytesIO(image)).convert("RGB"))
-    result = ocr_model.ocr(image_np, cls=True)
-    texts = [line[1][0] for line in result[0]]
-    return {"text": "\n".join(texts)}
 
 # ───── /whisper：語音轉文字 ─────
 
