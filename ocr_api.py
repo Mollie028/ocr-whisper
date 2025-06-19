@@ -203,3 +203,10 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
         return {"id": record_id, "text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Whisper 發生錯誤：{e}")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("ocr_api:app", host="0.0.0.0", port=port)
+
