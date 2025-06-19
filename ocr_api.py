@@ -11,7 +11,6 @@ import os
 import requests
 import psycopg2
 import json
-import urllib.parse as up
 
 app = FastAPI()
 
@@ -26,23 +25,22 @@ app.add_middleware(
 ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
 whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 
-# 啟動時 log 出關鍵環境變數，方便 debug
-print("[啟動] DATABASE_URL:", os.getenv("DATABASE_URL"))
-print("[啟動] TOGETHER_API_KEY:", os.getenv("TOGETHER_API_KEY"))
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "dbname": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "port": os.getenv("DB_PORT")
+}
 
-# 解析 Railway 的 DATABASE_URL
-DB_URL = os.getenv("DATABASE_URL")
 def get_conn():
-    if not DB_URL:
-        raise Exception("[錯誤] 沒有設置 DATABASE_URL 環境變數！")
-    return psycopg2.connect(DB_URL)
+    return psycopg2.connect(**DB_CONFIG)
 
 def clean_ocr_text(result):
     lines = []
     try:
         if isinstance(result, list):
             for entry in result:
-                # 新版 PaddleOCR 的 rec_texts 結果在 entry["rec_texts"]
                 texts = entry.get("rec_texts", [])
                 for t in texts:
                     t = t.strip()
@@ -61,7 +59,6 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-        # ✅ 圖片若太大就自動縮小，加快辨識速度
         MAX_SIDE = 1600
         height, width = img.shape[:2]
         max_side = max(height, width)
@@ -72,7 +69,6 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
             img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
             print(f"🔧 圖片已縮小至：{img.shape}")
 
-        # 🔍 執行 OCR
         result = ocr_model.ocr(img)
 
         print("\n原始 OCR result：", result)
@@ -82,14 +78,10 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         if not final_text:
             raise HTTPException(status_code=400, detail="❌ OCR 沒有辨識出任何內容")
 
-        # ✅ 寫入資料庫
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, final_text))
-        row = cur.fetchone()
-        if row is None:
-            raise HTTPException(status_code=500, detail="資料庫未回傳 id")
-        record_id = row[0]
+        record_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
@@ -98,9 +90,8 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
     except Exception as e:
         import traceback
         print("❌ OCR 發生錯誤：", e)
-        traceback.print_exc()  # 這行會印出完整錯誤堆疊資訊（哪一行出錯）
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
-            
 
 @app.post("/extract")
 async def extract_fields(payload: dict):
@@ -192,10 +183,7 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, text))
-        row = cur.fetchone()
-        if row is None:
-            raise HTTPException(status_code=500, detail="資料庫未回傳 id")
-        record_id = row[0]
+        record_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
@@ -203,10 +191,3 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
         return {"id": record_id, "text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Whisper 發生錯誤：{e}")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("ocr_api:app", host="0.0.0.0", port=port)
-
