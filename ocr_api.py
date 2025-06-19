@@ -41,6 +41,7 @@ def clean_ocr_text(result):
     try:
         if isinstance(result, list):
             for entry in result:
+                # 新版 PaddleOCR 的 rec_texts 結果在 entry["rec_texts"]
                 texts = entry.get("rec_texts", [])
                 for t in texts:
                     t = t.strip()
@@ -59,6 +60,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
+        # ✅ 圖片若太大就自動縮小，加快辨識速度
         MAX_SIDE = 1600
         height, width = img.shape[:2]
         max_side = max(height, width)
@@ -69,6 +71,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
             img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
             print(f"🔧 圖片已縮小至：{img.shape}")
 
+        # 🔍 執行 OCR
         result = ocr_model.ocr(img)
 
         print("\n原始 OCR result：", result)
@@ -78,6 +81,7 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         if not final_text:
             raise HTTPException(status_code=400, detail="❌ OCR 沒有辨識出任何內容")
 
+        # ✅ 寫入資料庫
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, final_text))
@@ -90,8 +94,9 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
     except Exception as e:
         import traceback
         print("❌ OCR 發生錯誤：", e)
-        traceback.print_exc()
+        traceback.print_exc()  # 這行會印出完整錯誤堆疊資訊（哪一行出錯）
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
+            
 
 @app.post("/extract")
 async def extract_fields(payload: dict):
@@ -191,3 +196,8 @@ async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
         return {"id": record_id, "text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Whisper 發生錯誤：{e}")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
