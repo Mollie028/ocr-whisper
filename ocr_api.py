@@ -1,25 +1,20 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.openapi.utils import get_openapi
-
-from backend.core.security import create_access_token, SECRET_KEY, ALGORITHM
-from backend.schemas.user import UserCreate, UserLogin, Token
-from jose import jwt
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
 from PIL import Image
 import numpy as np
+import cv2
+import io
 import tempfile
 import os
-import io
+import requests
+import psycopg2
+import json
+import urllib.parse as up
 
-# ───── 載入模型（正式部署）─────
-ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
-whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
-
-# ───── 初始化 App ─────
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,117 +23,183 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
+whisper_model = WhisperModel("small", device="cpu", compute_type="int8")
 
-# ➕ Swagger UI 支援 Bearer Token
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title="AI 名片辨識與語音備註系統",
-        version="1.0.0",
-        description="正式版（雲端部署）",
-        routes=app.routes,
-    )
-    openapi_schema["components"]["securitySchemes"] = {
-        "OAuth2PasswordBearer": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT"
-        }
-    }
-    for path in openapi_schema["paths"].values():
-        for method in path.values():
-            method["security"] = [{"OAuth2PasswordBearer": []}]
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+# 啟動時 log 出關鍵環境變數，方便 debug
+print("[啟動] DATABASE_URL:", os.getenv("DATABASE_URL"))
+print("[啟動] TOGETHER_API_KEY:", os.getenv("TOGETHER_API_KEY"))
 
-app.openapi = custom_openapi
+# 解析 Railway 的 DATABASE_URL
+DB_URL = os.getenv("DATABASE_URL")
+def get_conn():
+    if not DB_URL:
+        raise Exception("[錯誤] 沒有設置 DATABASE_URL 環境變數！")
+    return psycopg2.connect(DB_URL)
 
-# ───── 登入／使用者資訊 ─────
-
-@app.post("/register", response_model=Token)
-async def register(user: UserCreate):
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.post("/login", response_model=Token)
-async def login(user: UserLogin):
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/me")
-async def read_current_user(token: str = Depends(oauth2_scheme)):
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    username: str = payload.get("sub")
-    if not username:
-        raise HTTPException(status_code=401, detail="無效的 token")
-    return {
-        "username": username,
-        "role": "admin" if username == "testuser" else "user"
-    }
-
-# ───── /ocr：圖片轉文字 ─────
+def clean_ocr_text(result):
+    lines = []
+    try:
+        if isinstance(result, list):
+            for entry in result:
+                # 新版 PaddleOCR 的 rec_texts 結果在 entry["rec_texts"]
+                texts = entry.get("rec_texts", [])
+                for t in texts:
+                    t = t.strip()
+                    if t and not any(x in t.lower() for x in ["www", "fax", "網址", "傳真"]):
+                        lines.append(t)
+    except Exception as e:
+        print("❌ clean_ocr_text 錯誤：", e)
+    cleaned = "\n".join(lines)
+    print("最終擷取內容：", repr(cleaned))
+    return cleaned
 
 @app.post("/ocr")
-async def ocr_endpoint(file: UploadFile = File(...)):
-    if not ocr_model:
-        raise HTTPException(status_code=503, detail="OCR 模型未載入")
-    
+async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
     try:
-        image = await file.read()
-        image_np = np.array(Image.open(io.BytesIO(image)).convert("RGB"))
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+        # ✅ 圖片若太大就自動縮小，加快辨識速度
+        MAX_SIDE = 1600
+        height, width = img.shape[:2]
+        max_side = max(height, width)
+        if max_side > MAX_SIDE:
+            scale = MAX_SIDE / max_side
+            new_w = int(width * scale)
+            new_h = int(height * scale)
+            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            print(f"🔧 圖片已縮小至：{img.shape}")
+
+        # 🔍 執行 OCR
+        result = ocr_model.ocr(img)
+
+        print("\n原始 OCR result：", result)
+        final_text = clean_ocr_text(result)
+        print("\n OCR 最終擷取結果：", final_text)
+
+        if not final_text:
+            raise HTTPException(status_code=400, detail="❌ OCR 沒有辨識出任何內容")
+
+        # ✅ 寫入資料庫
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, final_text))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=500, detail="資料庫未回傳 id")
+        record_id = row[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return {"id": record_id, "text": final_text}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"❌ 圖片讀取失敗：{str(e)}")
-    
-    try:
-        result = ocr_model.ocr(image_np, cls=True)
-        texts = [line[1][0] for line in result[0]]
-        return {"text": "\n".join(texts)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"❌ OCR 執行錯誤：{str(e)}")
-
-
-# ───── /whisper：語音轉文字 ─────
-
-@app.post("/whisper")
-async def whisper_endpoint(file: UploadFile = File(...)):
-    if not whisper_model:
-        raise HTTPException(status_code=503, detail="Whisper 模型未載入")
-
-    audio = await file.read()
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-        temp_audio.write(audio)
-        temp_audio_path = temp_audio.name
-
-    segments, _ = whisper_model.transcribe(temp_audio_path, beam_size=5)
-    os.remove(temp_audio_path)
-
-    text_result = " ".join([seg.text for seg in segments])
-    return {"text": text_result}
-
-# ───── /extract：模擬欄位萃取 ─────
+        import traceback
+        print("❌ OCR 發生錯誤：", e)
+        traceback.print_exc()  # 這行會印出完整錯誤堆疊資訊（哪一行出錯）
+        raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
+            
 
 @app.post("/extract")
 async def extract_fields(payload: dict):
     text = payload.get("text", "")
-    record_id = payload.get("id", 0)
+    record_id = payload.get("id")
     if not text or not record_id:
         raise HTTPException(status_code=400, detail="❌ 缺少文字或 ID")
-    return {
-        "id": record_id,
-        "fields": {
-            "name": "王小明",
-            "phone": "0912-345-678",
-            "email": "test@example.com",
-            "title": "工程師",
-            "company_name": "測試公司"
-        }
+
+    print("\n 傳送給 LLaMA 的內容：\n", text)
+
+    llama_api = "https://api.together.xyz/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    body = {
+        "model": "meta-llama/Llama-3-8b-chat-hf",
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "你是一個專業資料萃取助手，負責從名片 OCR 文字中找出聯絡資訊。"
+                    "只回傳 JSON 格式，欄位包括 name, phone, email, title, company_name。"
+                    "請勿使用虛構資料或範例。無資料請填 '未知'。"
+                )
+            },
+            {
+                "role": "user",
+                "content": text
+            }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 512
     }
 
-# ───── 本地執行入口（開發用）─────
+    try:
+        res = requests.post(llama_api, headers=headers, json=body)
+        res.raise_for_status()
+        res_json = res.json()
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+        parsed_text = res_json["choices"][0]["message"]["content"].strip()
+        print("\n LLaMA 回應：\n", parsed_text)
+
+        start = parsed_text.find("{")
+        end = parsed_text.rfind("}") + 1
+        parsed_json = json.loads(parsed_text[start:end])
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE business_cards
+            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s
+            WHERE id = %s
+            """,
+            (
+                parsed_json.get("name"),
+                parsed_json.get("phone"),
+                parsed_json.get("email"),
+                parsed_json.get("title"),
+                parsed_json.get("company_name"),
+                record_id
+            )
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"id": record_id, "fields": parsed_json}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"寫入資料庫失敗：{e}")
+
+@app.post("/whisper")
+async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
+    try:
+        contents = await file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        segments, _ = whisper_model.transcribe(
+            tmp_path, language="zh", beam_size=1, vad_filter=True, max_new_tokens=440
+        )
+        text = " ".join([seg.text.strip() for seg in segments])
+
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, text))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=500, detail="資料庫未回傳 id")
+        record_id = row[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return {"id": record_id, "text": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Whisper 發生錯誤：{e}")
