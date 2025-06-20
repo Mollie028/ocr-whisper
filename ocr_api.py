@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
@@ -10,7 +10,8 @@ import tempfile
 import os
 import requests
 import psycopg2
-import json, bcrypt
+import json
+import bcrypt
 
 app = FastAPI()
 
@@ -41,7 +42,6 @@ def clean_ocr_text(result):
     try:
         if isinstance(result, list):
             for entry in result:
-                # 新版 PaddleOCR 的 rec_texts 結果在 entry["rec_texts"]
                 texts = entry.get("rec_texts", [])
                 for t in texts:
                     t = t.strip()
@@ -53,49 +53,39 @@ def clean_ocr_text(result):
     print("最終擷取內容：", repr(cleaned))
     return cleaned
 
-
 @app.post("/register")
-async def register(data: dict):
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="請提供帳號與密碼")
-
-    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode()
-
+def register(username: str = Form(...), password: str = Form(...)):
     try:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed))
+        hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_pw))
         conn.commit()
         cur.close()
         conn.close()
         return {"message": "✅ 註冊成功"}
-    except psycopg2.errors.UniqueViolation:
-        raise HTTPException(status_code=409, detail="帳號已存在")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"註冊失敗：{e}")
+        raise HTTPException(status_code=400, detail=f"註冊失敗：{e}")
 
 @app.post("/login")
-async def login(data: dict):
-    username = data.get("username")
-    password = data.get("password")
+def login(username: str = Form(...), password: str = Form(...)):
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id, password, role FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
 
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, password, role FROM users WHERE username = %s", (username,))
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
+        if not user:
+            raise HTTPException(status_code=401, detail="帳號不存在")
+        user_id, hashed_pw, role = user
+        if not bcrypt.checkpw(password.encode(), hashed_pw.encode()):
+            raise HTTPException(status_code=401, detail="密碼錯誤")
 
-    if result and bcrypt.checkpw(password.encode('utf-8'), result[1].encode()):
-        return {"user_id": result[0], "role": result[2], "message": "✅ 登入成功"}
-    else:
-        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-
-
-
+        return {"message": "✅ 登入成功", "user_id": user_id, "username": username, "role": role}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"登入失敗：{e}")
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
@@ -104,7 +94,6 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-        # ✅ 圖片若太大就自動縮小，加快辨識速度
         MAX_SIDE = 1600
         height, width = img.shape[:2]
         max_side = max(height, width)
@@ -113,19 +102,13 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
             new_w = int(width * scale)
             new_h = int(height * scale)
             img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            print(f"🔧 圖片已縮小至：{img.shape}")
 
-        # 🔍 執行 OCR
         result = ocr_model.ocr(img)
-
-        print("\n原始 OCR result：", result)
         final_text = clean_ocr_text(result)
-        print("\n OCR 最終擷取結果：", final_text)
 
         if not final_text:
             raise HTTPException(status_code=400, detail="❌ OCR 沒有辨識出任何內容")
 
-        # ✅ 寫入資料庫
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("INSERT INTO business_cards (user_id, ocr_text) VALUES (%s, %s) RETURNING id", (user_id, final_text))
@@ -137,10 +120,8 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         return {"id": record_id, "text": final_text}
     except Exception as e:
         import traceback
-        print("❌ OCR 發生錯誤：", e)
-        traceback.print_exc()  # 這行會印出完整錯誤堆疊資訊（哪一行出錯）
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
-            
 
 @app.post("/extract")
 async def extract_fields(payload: dict):
@@ -148,8 +129,6 @@ async def extract_fields(payload: dict):
     record_id = payload.get("id")
     if not text or not record_id:
         raise HTTPException(status_code=400, detail="❌ 缺少文字或 ID")
-
-    print("\n 傳送給 LLaMA 的內容：\n", text)
 
     llama_api = "https://api.together.xyz/v1/chat/completions"
     headers = {
@@ -182,8 +161,6 @@ async def extract_fields(payload: dict):
         res_json = res.json()
 
         parsed_text = res_json["choices"][0]["message"]["content"].strip()
-        print("\n LLaMA 回應：\n", parsed_text)
-
         start = parsed_text.find("{")
         end = parsed_text.rfind("}") + 1
         parsed_json = json.loads(parsed_text[start:end])
