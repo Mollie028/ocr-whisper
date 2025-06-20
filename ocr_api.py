@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from paddleocr import PaddleOCR
 from faster_whisper import WhisperModel
@@ -11,7 +11,6 @@ import os
 import requests
 import psycopg2
 import json
-import bcrypt
 
 app = FastAPI()
 
@@ -53,40 +52,6 @@ def clean_ocr_text(result):
     print("最終擷取內容：", repr(cleaned))
     return cleaned
 
-@app.post("/register")
-def register(username: str = Form(...), password: str = Form(...)):
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_pw))
-        conn.commit()
-        cur.close()
-        conn.close()
-        return {"message": "✅ 註冊成功"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"註冊失敗：{e}")
-
-@app.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute("SELECT id, password, role FROM users WHERE username = %s", (username,))
-        user = cur.fetchone()
-        cur.close()
-        conn.close()
-
-        if not user:
-            raise HTTPException(status_code=401, detail="帳號不存在")
-        user_id, hashed_pw, role = user
-        if not bcrypt.checkpw(password.encode(), hashed_pw.encode()):
-            raise HTTPException(status_code=401, detail="密碼錯誤")
-
-        return {"message": "✅ 登入成功", "user_id": user_id, "username": username, "role": role}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"登入失敗：{e}")
-
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
     try:
@@ -120,78 +85,9 @@ async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
         return {"id": record_id, "text": final_text}
     except Exception as e:
         import traceback
+        print("❌ OCR 發生錯誤：", e)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"OCR 發生錯誤：{e}")
-
-@app.post("/extract")
-async def extract_fields(payload: dict):
-    text = payload.get("text", "")
-    record_id = payload.get("id")
-    if not text or not record_id:
-        raise HTTPException(status_code=400, detail="❌ 缺少文字或 ID")
-
-    llama_api = "https://api.together.xyz/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}",
-        "Content-Type": "application/json"
-    }
-    body = {
-        "model": "meta-llama/Llama-3-8b-chat-hf",
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "你是一個專業資料萃取助手，負責從名片 OCR 文字中找出聯絡資訊。"
-                    "只回傳 JSON 格式，欄位包括 name, phone, email, title, company_name。"
-                    "請勿使用虛構資料或範例。無資料請填 '未知'。"
-                )
-            },
-            {
-                "role": "user",
-                "content": text
-            }
-        ],
-        "temperature": 0.2,
-        "max_tokens": 512
-    }
-
-    try:
-        res = requests.post(llama_api, headers=headers, json=body)
-        res.raise_for_status()
-        res_json = res.json()
-
-        parsed_text = res_json["choices"][0]["message"]["content"].strip()
-        start = parsed_text.find("{")
-        end = parsed_text.rfind("}") + 1
-        parsed_json = json.loads(parsed_text[start:end])
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLaMA 解析失敗：{e}")
-
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            UPDATE business_cards
-            SET name = %s, phone = %s, email = %s, title = %s, company_name = %s
-            WHERE id = %s
-            """,
-            (
-                parsed_json.get("name"),
-                parsed_json.get("phone"),
-                parsed_json.get("email"),
-                parsed_json.get("title"),
-                parsed_json.get("company_name"),
-                record_id
-            )
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        return {"id": record_id, "fields": parsed_json}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"寫入資料庫失敗：{e}")
 
 @app.post("/whisper")
 async def whisper_endpoint(file: UploadFile = File(...), user_id: int = 1):
