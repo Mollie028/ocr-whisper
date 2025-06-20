@@ -10,7 +10,7 @@ import tempfile
 import os
 import requests
 import psycopg2
-import json
+import json, bcrypt
 
 app = FastAPI()
 
@@ -52,6 +52,50 @@ def clean_ocr_text(result):
     cleaned = "\n".join(lines)
     print("最終擷取內容：", repr(cleaned))
     return cleaned
+
+
+@app.post("/register")
+async def register(data: dict):
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="請提供帳號與密碼")
+
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode()
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"message": "✅ 註冊成功"}
+    except psycopg2.errors.UniqueViolation:
+        raise HTTPException(status_code=409, detail="帳號已存在")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"註冊失敗：{e}")
+
+@app.post("/login")
+async def login(data: dict):
+    username = data.get("username")
+    password = data.get("password")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, password, role FROM users WHERE username = %s", (username,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if result and bcrypt.checkpw(password.encode('utf-8'), result[1].encode()):
+        return {"user_id": result[0], "role": result[2], "message": "✅ 登入成功"}
+    else:
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+
+
+
 
 @app.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...), user_id: int = 1):
