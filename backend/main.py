@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # 模組匯入：依照專案結構 backend/api/*
-from backend.api import auth, ocr, whisper, extract
+from backend.api import auth, ocr, whisper
 
 app = FastAPI()
 
