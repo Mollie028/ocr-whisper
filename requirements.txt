@@ -10,7 +10,8 @@ numpy
 requests
 sentence-transformers
 psycopg2-binary
-passlib[bcrypt][email]
+passlib[bcrypt]
+pydantic[email]
 python-jose[cryptography]
 bcrypt
 
