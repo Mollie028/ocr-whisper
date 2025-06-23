@@ -1,7 +1,8 @@
 import os
 import json
 import requests
-from services.db import get_conn
+from backend.core.db import get_conn
+
 
 def extract_fields_from_llm(text: str) -> dict:
     llama_api = "https://api.together.xyz/v1/chat/completions"
