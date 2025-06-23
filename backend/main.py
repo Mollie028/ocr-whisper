@@ -20,7 +20,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(ocr.router, prefix="/ocr", tags=["ocr"])
 app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
-app.include_router(extract.router, prefix="/extract", tags=["extract"])
+# ⚠️ extract.router 這一行已移除，因為你沒有 extract.py
 
 # 根目錄健康檢查
 @app.get("/")
