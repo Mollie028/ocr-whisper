@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os  # ✅ 補上 os 套件
 
 # ✅ 改為從 backend 開始引入
 from backend.api import auth, ocr, whisper, extract
@@ -24,7 +25,7 @@ app.include_router(extract.router, prefix="/extract", tags=["extract"])
 @app.get("/")
 def root():
     return {"message": "OCR + Whisper API is running."}
-    
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
