@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api import auth, ocr, whisper  # ← 加上 whisper
+from backend.api import auth, ocr, whisper
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
