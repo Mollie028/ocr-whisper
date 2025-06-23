@@ -26,7 +26,4 @@ app.include_router(extract.router, prefix="/extract", tags=["extract"])
 def root():
     return {"message": "OCR + Whisper API is running."}
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+
