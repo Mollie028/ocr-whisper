@@ -25,27 +25,33 @@ class LoginInput(BaseModel):
 # --------------------
 @router.post("/register")
 def register(data: RegisterInput):
-    print("收到的帳號：", data.username) 
-    
     conn = get_conn()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    # 檢查帳號是否存在
     cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
     if cur.fetchone():
-        raise HTTPException(status_code=400, detail="❌ 此帳號已存在，請換一個")
+        raise HTTPException(status_code=400, detail="此帳號已存在，請換一個")
 
-    hashed_pw = hash_password(data.password)
+    hashed = hash_password(data.password)
+    is_admin = data.role == "admin"
+    can_view_all = is_admin
+
+    print("✅ 準備寫入：", data.username)
+
     cur.execute(
         """
-        INSERT INTO users (username, password_hash, is_admin, can_view_all, company_name)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO users (username, password_hash, is_admin, can_view_all)
+        VALUES (%s, %s, %s, %s)
         """,
-        (data.username, hashed_pw, data.is_admin, data.can_view_all, data.company_name)
+        (data.username, hashed, is_admin, can_view_all)
     )
+
     conn.commit()
+    print("✅ commit 完成")
+
     cur.close()
     conn.close()
+
     return {"msg": "✅ 註冊成功"}
 
 # --------------------
