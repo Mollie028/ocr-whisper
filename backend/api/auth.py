@@ -25,6 +25,8 @@ class LoginInput(BaseModel):
 # --------------------
 @router.post("/register")
 def register(data: RegisterInput):
+    print("收到的帳號：", data.username) 
+    
     conn = get_conn()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
