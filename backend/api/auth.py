@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 from backend.core.db import get_conn
 from backend.core.security import hash_password, verify_password, create_jwt_token
+from datetime import datetime  
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -13,6 +14,7 @@ class RegisterInput(BaseModel):
     username: str
     password: str
     role: str  # "admin" 或 "user"
+    company_name: str = ""  
 
 class LoginInput(BaseModel):
     username: str
@@ -28,26 +30,30 @@ def register(data: RegisterInput):
 
     cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
     result = cur.fetchone()
-    print("👉 查詢結果：", result)  # 加上這行
+    print("👉 查詢結果：", result)
     
     if result:
         raise HTTPException(status_code=400, detail="此帳號已存在，請換一個")
 
-
-    # 加密密碼與角色判斷
     hashed = hash_password(data.password)
     is_admin = data.role == "admin"
     can_view_all = is_admin
 
     print("✅ 準備寫入：", data.username)
 
-    # 寫入資料庫
     cur.execute(
         """
-        INSERT INTO users (username, password_hash, is_admin, can_view_all)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO users (company_name, username, password_hash, created_at, is_admin, can_view_all)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """,
-        (data.username, hashed, is_admin, can_view_all)
+        (
+            data.company_name,
+            data.username,
+            hashed,
+            datetime.utcnow(),  
+            is_admin,
+            can_view_all
+        )
     )
 
     conn.commit()
