@@ -1,9 +1,6 @@
-# backend/api/auth.py
-
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
-import psycopg2
 from backend.core.db import get_conn
 from backend.core.security import hash_password, verify_password, create_jwt_token
 
@@ -14,11 +11,13 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # --------------------
 class RegisterInput(BaseModel):
     username: str
-    email: EmailStr
     password: str
+    is_admin: bool = False
+    can_view_all: bool = False
+    company_name: str = ""  # 可選填
 
 class LoginInput(BaseModel):
-    email: EmailStr
+    username: str
     password: str
 
 # --------------------
@@ -30,14 +29,17 @@ def register(data: RegisterInput):
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # 檢查帳號是否存在
-    cur.execute("SELECT * FROM users WHERE email = %s", (data.email,))
+    cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
     if cur.fetchone():
-        raise HTTPException(status_code=400, detail="該信箱已註冊")
+        raise HTTPException(status_code=400, detail="❌ 此帳號已存在，請換一個")
 
-    hashed = hash_password(data.password)
+    hashed_pw = hash_password(data.password)
     cur.execute(
-        "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-        (data.username, data.email, hashed)
+        """
+        INSERT INTO users (username, password_hash, is_admin, can_view_all, company_name)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (data.username, hashed_pw, data.is_admin, data.can_view_all, data.company_name)
     )
     conn.commit()
     cur.close()
@@ -52,15 +54,26 @@ def login(data: LoginInput):
     conn = get_conn()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    cur.execute("SELECT * FROM users WHERE email = %s", (data.email,))
+    cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
     user = cur.fetchone()
 
-    if not user or not verify_password(data.password, user["password"]):
+    if not user or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
 
-    token = create_jwt_token(user_id=user["id"], role=user.get("role", "user"))
+    token = create_jwt_token(
+        user_id=user["id"],
+        role="admin" if user["is_admin"] else "user"
+    )
 
     cur.close()
     conn.close()
 
-    return {"access_token": token, "user": {"id": user["id"], "username": user["username"], "role": user["role"]}}
+    return {
+        "access_token": token,
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "role": "admin" if user["is_admin"] else "user",
+            "can_view_all": user["can_view_all"]
+        }
+    }
