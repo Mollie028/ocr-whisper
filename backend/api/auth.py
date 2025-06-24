@@ -26,10 +26,13 @@ def register(data: RegisterInput):
     conn = get_conn()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    # 檢查帳號是否已存在
     cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
-    if cur.fetchone():
+    result = cur.fetchone()
+    print("👉 查詢結果：", result)  # 加上這行
+    
+    if result:
         raise HTTPException(status_code=400, detail="此帳號已存在，請換一個")
+
 
     # 加密密碼與角色判斷
     hashed = hash_password(data.password)
