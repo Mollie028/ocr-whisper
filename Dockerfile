@@ -22,6 +22,6 @@ COPY . .
 # 設定 PYTHONPATH 讓 FastAPI 能正確匯入 backend 資料夾的模組
 ENV PYTHONPATH=/app
 
-# 執行 entrypoint.sh（這是你剛剛寫的）
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["bash", "entrypoint.sh"]
+
 
