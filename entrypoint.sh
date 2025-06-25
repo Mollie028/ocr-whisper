@@ -1,5 +1,4 @@
-#!/bin/bash
+echo "🚀 Running entrypoint.sh"
 
-echo "✅ 啟動 OCR + Whisper API"
-
-uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# 啟動 API 主程式
+exec uvicorn backend.main:app --host=0.0.0.0 --port=8000
