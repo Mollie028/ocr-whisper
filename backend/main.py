@@ -27,8 +27,3 @@ app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
 def root():
     return {"message": "✅ OCR + Whisper API is running."}
 
-# Railway 執行進入點
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)
