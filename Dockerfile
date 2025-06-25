@@ -23,4 +23,5 @@ COPY . .
 ENV PYTHONPATH=/app
 
 # 執行 entrypoint.sh（這是你剛剛寫的）
-CMD ["bash", "entrypoint.sh"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
