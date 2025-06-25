@@ -18,6 +18,8 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # 複製所有程式碼
 COPY . .
+RUN chmod +x entrypoint.sh
+
 
 # 設定 PYTHONPATH 讓 FastAPI 能正確匯入 backend 資料夾的模組
 ENV PYTHONPATH=/app
