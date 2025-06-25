@@ -27,5 +27,7 @@ app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
 # 根目錄健康檢查
 @app.get("/")
 def root():
+    print("✅ / 路由被呼叫了")
     return {"message": "✅ OCR + Whisper API is running."}
+
 
