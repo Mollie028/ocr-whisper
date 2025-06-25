@@ -4,8 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # 模組匯入：依照專案結構 backend/api/*
 from backend.api import auth, ocr, whisper
-
-app = FastAPI()
+API_BASE = "https://ocr-whisper-api-production-03e9.up.railway.app/"
 
 # CORS 設定（允許前端跨網域請求）
 app.add_middleware(
