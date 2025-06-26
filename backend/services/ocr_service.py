@@ -17,15 +17,12 @@ def initialize_ocr_model():
     return ocr_model_instance
 
 async def run_ocr(file):
-    # 確保模型已初始化
     model = initialize_ocr_model() # 這裡現在會取得初始化過後的模型
 
-    # 讀取圖片內容
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
     img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    # 圖片太大就縮小
     MAX_SIDE = 1600
     height, width = img.shape[:2]
     max_side = max(height, width)
@@ -35,10 +32,8 @@ async def run_ocr(file):
         new_h = int(height * scale)
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    # 執行 OCR
-    result = model.ocr(img, cls=True) # 使用取得的模型實例
+    result = model.ocr(img, cls=True)
 
-    # 擷取文字內容
     lines = []
     try:
         for box in result[0]:
@@ -46,5 +41,5 @@ async def run_ocr(file):
             if text and not any(x in text.lower() for x in ["www", "fax", "網址", "傳真"]):
                 lines.append(text)
     except Exception as e:
-        print(f"❌ OCR 擷取失敗: {e}") # 統一錯誤輸出方式
+        print(f"❌ OCR 擷取失敗：{e}")
     return " ".join(lines)
