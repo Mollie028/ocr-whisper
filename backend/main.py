@@ -32,8 +32,8 @@ async def startup_event():
     print("💡 執行應用程式啟動事件...")
     # 由於模型載入是 CPU 密集型操作，可能不是完全異步的，
     # 我們可以使用 asyncio.to_thread 來避免阻塞 FastAPI 的事件循環
-    await asyncio.to_thread(initialize_ocr_model)
-    await asyncio.to_thread(initialize_whisper_model)
+    #await asyncio.to_thread(initialize_ocr_model)
+    #await asyncio.to_thread(initialize_whisper_model)
     print("🎉 所有模型初始化完成！應用程式已準備好。")
 
 # 根目錄健康檢查
