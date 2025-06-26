@@ -23,7 +23,8 @@ RUN chmod +x entrypoint.sh
 
 # 設定 PYTHONPATH 讓 FastAPI 能正確匯入 backend 資料夾的模組
 ENV PYTHONPATH=/app
-
+EXPOSE 8000
 CMD ["bash", "entrypoint.sh"]
+
 
 
