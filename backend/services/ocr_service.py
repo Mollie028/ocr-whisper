@@ -15,9 +15,8 @@ def initialize_ocr_model():
         try:
             ocr_model_instance = PaddleOCR(
                 use_angle_cls=True,  # 仍然使用角度分類
-                lang='ch',           # 仍然是中文
-                use_gpu=False        # 顯式關閉 GPU 使用，確保在 CPU 上運行，避免 GPU 相關記憶體分配
-                # show_log=False     # <-- 移除這一行！這個參數導致了 Unknown argument 錯誤
+                lang='ch'            # 仍然是中文
+                # use_gpu=False      # <-- 移除這一行！這個參數也導致了錯誤
             )
             print("✅ PaddleOCR 模型初始化完成 (可能為輕量級模型)。")
         except Exception as e:
@@ -25,6 +24,8 @@ def initialize_ocr_model():
             raise # 重新拋出異常，讓部署失敗以便診斷
             
     return ocr_model_instance
+
+# ... (run_ocr 函數及其他部分保持不變)
 
 async def run_ocr(file):
     # 確保模型已初始化
