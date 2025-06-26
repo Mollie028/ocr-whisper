@@ -1,28 +1,33 @@
+# backend/services/whisper_service.py
 import os
 import tempfile
 from faster_whisper import WhisperModel
 
-tiny_model = WhisperModel("tiny", compute_type="int8")
+# 宣告一個變數來存放模型，初始為 None
+whisper_model_instance = None
 
+def initialize_whisper_model():
+    global whisper_model_instance
+    if whisper_model_instance is None:
+        print("🚀 初始化 Faster-Whisper 模型...")
+        whisper_model_instance = WhisperModel("tiny", compute_type="int8")
+        print("✅ Faster-Whisper 模型初始化完成。")
+    return whisper_model_instance
 
 def transcribe_audio(file):
-    """
-    將語音檔案轉換為逐字稿文字。
-    支援 file 為 FastAPI 的 UploadFile 或 Streamlit 傳來的 bytes。
-    """
-    # 判斷是否為 UploadFile（FastAPI 傳送），還是 bytes（Streamlit 傳送）
+    model = initialize_whisper_model() # 這裡現在會取得初始化過後的模型
+
     if hasattr(file, "file"):
         audio_bytes = file.file.read()
     else:
         audio_bytes = file
 
-    # 將音訊寫入暫存檔
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
 
     try:
-        segments, _ = tiny_model.transcribe(tmp_path, beam_size=5)
+        segments, _ = model.transcribe(tmp_path, beam_size=5)
         text = " ".join([seg.text for seg in segments])
         return text.strip()
     finally:
