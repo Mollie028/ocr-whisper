@@ -1,15 +1,25 @@
 # backend/services/ocr_service.py
-
 from paddleocr import PaddleOCR
 import numpy as np
 import cv2
 from PIL import Image
 import io
 
-# 初始化 PaddleOCR（建議只初始化一次）
-ocr_model = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
+# 宣告一個變數來存放模型，初始為 None
+ocr_model_instance = None
+
+def initialize_ocr_model():
+    global ocr_model_instance
+    if ocr_model_instance is None:
+        print("🚀 初始化 PaddleOCR 模型...")
+        ocr_model_instance = PaddleOCR(use_angle_cls=True, lang='ch', det_db_box_thresh=0.3)
+        print("✅ PaddleOCR 模型初始化完成。")
+    return ocr_model_instance
 
 async def run_ocr(file):
+    # 確保模型已初始化
+    model = initialize_ocr_model() # 這裡現在會取得初始化過後的模型
+
     # 讀取圖片內容
     contents = await file.read()
     image = Image.open(io.BytesIO(contents)).convert("RGB")
@@ -26,7 +36,7 @@ async def run_ocr(file):
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     # 執行 OCR
-    result = ocr_model.ocr(img, cls=True)
+    result = model.ocr(img, cls=True) # 使用取得的模型實例
 
     # 擷取文字內容
     lines = []
@@ -36,7 +46,5 @@ async def run_ocr(file):
             if text and not any(x in text.lower() for x in ["www", "fax", "網址", "傳真"]):
                 lines.append(text)
     except Exception as e:
-        print("❌ OCR 擷取失敗：", e)
-
-    final_text = "\n".join(lines)
-    return final_text
+        print(f"❌ OCR 擷取失敗: {e}") # 統一錯誤輸出方式
+    return " ".join(lines)
