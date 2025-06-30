@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+h11>=0.14.0
 click>=8.1.0           
 paddlepaddle==2.5.1
 faster-whisper
