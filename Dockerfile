@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     gcc build-essential python3-dev pkg-config \
     && apt-get clean
 
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install -r requirements.txt --no-deps
 RUN pip install PyMuPDF==1.22.3
 RUN pip install paddleocr==2.6.1.3 --no-deps
@@ -18,4 +18,4 @@ ENV PYTHONPATH=/app/backend
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "."]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
