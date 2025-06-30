@@ -10,19 +10,17 @@ ocr_model_instance = None
 def initialize_ocr_model():
     global ocr_model_instance
     if ocr_model_instance is None:
-        print("🚀 初始化 PaddleOCR 模型...")
-
+        print("🚀 初始化 PaddleOCR 模型（mobile）...")
         try:
             ocr_model_instance = PaddleOCR(
-                use_angle_cls=True,  # 仍然使用角度分類
-                lang='ch'            # 仍然是中文
-                # use_gpu=False      # <-- 移除這一行！這個參數也導致了錯誤
+                use_angle_cls=False,  # ✅ 停用 angle classifier，省記憶體
+                lang='ch',            # ✅ 中文
+                use_gpu=False         # ✅ 強制用 CPU，避免 GPU 掃描報錯
             )
-            print("✅ PaddleOCR 模型初始化完成 (可能為輕量級模型)。")
+            print("✅ PaddleOCR 初始化完成！")
         except Exception as e:
-            print(f"❌ PaddleOCR 模型初始化失敗: {e}")
-            raise # 重新拋出異常，讓部署失敗以便診斷
-            
+            print(f"❌ 初始化失敗: {e}")
+            raise
     return ocr_model_instance
 
 # ... (run_ocr 函數及其他部分保持不變)
