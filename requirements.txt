@@ -1,7 +1,7 @@
 fastapi
 uvicorn
+click>=8.1.0           
 paddlepaddle==2.5.1
-paddleocr==2.6.1.3
 faster-whisper
 python-multipart
 pillow
