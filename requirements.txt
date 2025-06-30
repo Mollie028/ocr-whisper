@@ -26,3 +26,4 @@ protobuf
 google
 httpx
 opt_einsum
+astor
