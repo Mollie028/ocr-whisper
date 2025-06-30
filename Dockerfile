@@ -17,5 +17,6 @@ RUN echo
 
 EXPOSE 8000
 
-# ✅ 正確啟動指令：用 main.py 而不是 backend.main
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "."]
+
