@@ -14,7 +14,7 @@ RUN pip install PyMuPDF==1.22.3
 
 RUN pip install --upgrade pip && pip install -r requirements.txt --no-deps
 
-RUN pip install paddleocr==2.6.1.3
+RUN pip install paddleocr==2.6.1.3 --no-deps
 
 
 ENV PYTHONPATH=/app
