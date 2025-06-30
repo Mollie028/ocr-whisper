@@ -8,11 +8,14 @@ RUN apt-get update && apt-get install -y \
     gcc build-essential python3-dev pkg-config \
     && apt-get clean
 
-# 安裝 Python 套件
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
 
-COPY . .
+RUN pip install PyMuPDF==1.22.3
+
+RUN pip install --upgrade pip && pip install -r requirements.txt --no-deps
+
+RUN pip install paddleocr==2.6.1.3
+
 
 ENV PYTHONPATH=/app
 EXPOSE 8000
