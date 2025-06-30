@@ -20,7 +20,7 @@ RUN pip install paddleocr==2.6.1.3 --no-deps
 ENV PYTHONPATH=/app
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "backend"]
 
 
 
