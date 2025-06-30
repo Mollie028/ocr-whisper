@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio # 導入 asyncio
+import asyncio 
 
 app = FastAPI()
 
@@ -25,6 +25,17 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(ocr.router, prefix="/ocr", tags=["ocr"])
 app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
+
+
+
+@app.on_event("startup")
+async def keep_alive():
+    print("🚀 啟動 keep-alive 任務")
+    asyncio.create_task(_keep_alive())
+
+async def _keep_alive():
+    while True:
+        await asyncio.sleep(3600)
 
 
 # 根目錄健康檢查
