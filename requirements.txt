@@ -16,3 +16,4 @@ bcrypt
 python-dotenv
 jinja2
 pdf2image
+PyMuPDF==1.22.3
