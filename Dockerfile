@@ -15,6 +15,8 @@ RUN pip install --upgrade pip && pip install -r requirements.txt --no-deps
 RUN pip install PyMuPDF==1.22.3
 RUN pip install paddleocr==2.6.1.3
 RUN pip install httpx opt_einsum
+RUN pip install astor
+
 COPY . .
 
 ENV PYTHONPATH=/app/backend
