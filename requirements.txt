@@ -25,3 +25,4 @@ decorator
 protobuf
 google
 httpx
+opt_einsum
