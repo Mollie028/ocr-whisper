@@ -2,17 +2,12 @@ FROM python:3.11-slim-buster
 
 WORKDIR /app
 
-# 安裝 PaddleOCR 與 Whisper 相關依賴
+# 安裝 PaddleOCR 與 Whisper 所需依賴（包含 libssl1.1）
 RUN apt-get update && apt-get install -y \
     libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 \
     gcc build-essential python3-dev pkg-config \
     libssl1.1 \
     && apt-get clean
-
-# 嘗試手動裝 libssl.so.1.1（從 Ubuntu 下載舊版本）
-RUN wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb && \
-    dpkg -i libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb && \
-    rm libssl1.1_1.1.1f-1ubuntu2.22_amd64.deb
 
 # 安裝 Python 套件
 COPY requirements.txt .
