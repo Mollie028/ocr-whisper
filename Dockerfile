@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt --no-deps
 RUN pip install PyMuPDF==1.22.3
-RUN pip install paddleocr==2.6.1.3 --no-deps
+RUN pip install paddleocr==2.6.1.3
 RUN pip install httpx opt_einsum
 COPY . .
 
