@@ -14,7 +14,7 @@ RUN pip install paddleocr==2.6.1.3 --no-deps
 
 COPY . .
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/backend
 
 EXPOSE 8000
 
