@@ -1,4 +1,4 @@
-FROM python:3.11
+FROM python:3.11-slim-buster
 
 WORKDIR /app
 
@@ -6,8 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 \
     gcc build-essential python3-dev pkg-config \
-    libssl-dev \
-    wget \
+    libssl1.1 \
     && apt-get clean
 
 # 嘗試手動裝 libssl.so.1.1（從 Ubuntu 下載舊版本）
