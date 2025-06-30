@@ -17,8 +17,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt --no-deps
 RUN pip install paddleocr==2.6.1.3 --no-deps
 
 
-ENV PYTHONPATH=/app/backend
+ENV PYTHONPATH=/app
 EXPOSE 8000
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "backend"]
+
 
