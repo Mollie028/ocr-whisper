@@ -3,17 +3,16 @@ import os
 import tempfile
 from faster_whisper import WhisperModel
 
-# 宣告一個變數來存放模型，初始為 None
-whisper_model_instance = None
+whisper_model = None
 
 def initialize_whisper_model():
-    global whisper_model_instance
-    if whisper_model_instance is None:
-        print("🚀 初始化 Faster-Whisper 模型...")
-        # compute_type="int8" 是量化版本，通常更快，如果記憶體不足可考慮
-        whisper_model_instance = WhisperModel("tiny", compute_type="int8")
-        print("✅ Faster-Whisper 模型初始化完成。")
-    return whisper_model_instance
+    global whisper_model
+    if whisper_model is None:
+        print("🚀 初始化 Whisper 模型（tiny）...")
+        whisper_model = WhisperModel("tiny", compute_type="int8", device="cpu")
+        print("✅ Whisper 模型初始化完成！")
+    return whisper_model
+
 
 def transcribe_audio(file):
     # 確保模型已初始化
