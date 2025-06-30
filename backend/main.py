@@ -31,10 +31,12 @@ app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
 @app.on_event("startup")
 async def keep_alive():
     print("🚀 啟動 keep-alive 任務")
-    asyncio.create_task(_keep_alive())
+    loop = asyncio.get_event_loop()
+    loop.create_task(_keep_alive())
 
 async def _keep_alive():
     while True:
+        print("💡 still alive...")
         await asyncio.sleep(3600)
 
 
