@@ -22,4 +22,4 @@ sniffio
 ecdsa
 six>=1.16.0
 decorator
-google-api-python-client
+google
