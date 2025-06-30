@@ -16,4 +16,6 @@ python-jose[cryptography]
 bcrypt
 python-dotenv
 pdf2image
+pydantic==1.10.9
+
 
