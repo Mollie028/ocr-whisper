@@ -1,38 +1,34 @@
+# Dockerfile
 FROM python:3.11-buster
-ENV DEBIAN_FRONTEND=noninteractive
-
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libmupdf-dev \
-    libjpeg-dev \
-    libpng-dev \
-    libtiff-dev \
-    libfreetype6-dev \
-    libwebp-dev \
-    libopenjp2-7-dev \
-    poppler-utils \
-    libgl1-mesa-glx \
-    libsm6 \
-    libxext6 \
-    pkg-config \
-    cmake \
-    zlib1g-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
-    liblcms2-dev \
-    libxml2-dev \
-    libxslt1-dev \
-    libsndfile1-dev \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 
 WORKDIR /app
+
+# 精簡 apt-get install，只保留 PyMuPDF / MuPDF 運行時可能需要的核心依賴
+# 這些是為了讓預編譯的 PyMuPDF wheel 能夠正確運行，而不是為了編譯源碼
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libharfbuzz0b \
+        libfreetype6 \
+        libfontconfig1 \
+        libjpeg-turbo8 \
+        libpng16-16 \
+        zlib1g \
+        # 如果 paddleocr 在運行時有其他系統依賴，可以視情況再加入
+        # 但現在先最小化，以排除 PyMuPDF 編譯問題
+    && rm -rf /var/lib/apt/lists/*
+
+# 複製 requirements.txt 並安裝 Python 依賴
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# 複製應用程式代碼
 COPY . .
+
+# 設定環境變數，告知 Uvicorn 監聽 8000 埠 (Railway 會透過 PORT 變數自動映射)
 ENV PORT 8000
+
+# 暴露埠 (可選，但建議保留)
 EXPOSE 8000
+
+# 啟動應用程式
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
