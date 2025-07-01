@@ -3,9 +3,9 @@ import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth, ocr, whisper
-from services.ocr_service import initialize_ocr_model
-from services.whisper_service import initialize_whisper_model
+from backend.api import auth, ocr, whisper
+from backend.services.ocr_service import initialize_ocr_model
+from backend.services.whisper_service import initialize_whisper_model
 
 
 API_BASE = "https://ocr-whisper-api-production-03e9.up.railway.app/"
