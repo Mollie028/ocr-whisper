@@ -38,6 +38,10 @@ async def _keep_alive():
     while True:
         print("💡 still alive...")
         await asyncio.sleep(3600)
+from fastapi import FastAPI
+
+app = FastAPI()
+
 @app.get("/")
-def health_check():
-    return {"status": "ok"} # 添加一個簡單的 JSON 回應
+async def root():
+    return {"message": "Hello from Railway!"} # 確保這裡有一個簡單的返回
