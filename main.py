@@ -29,12 +29,11 @@ app.include_router(whisper.router, prefix="/whisper", tags=["whisper"])
 # 啟動事件：初始化模型 & keep-alive
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 應用啟動：載入模型")
+    print("🚀 應用啟動：(暫不載入模型進行測試)")
     loop = asyncio.get_event_loop()
     loop.create_task(_keep_alive())
-    await asyncio.to_thread(initialize_ocr_model)
-    await asyncio.to_thread(initialize_whisper_model)
-
+    # await asyncio.to_thread(initialize_ocr_model) # 暫時註釋掉
+    # await asyncio.to_thread(initialize_whisper_model) # 暫時註釋掉
 async def _keep_alive():
     while True:
         print("💡 still alive...")
