@@ -15,6 +15,8 @@ pillow
 opencv-python-headless
 pdf2image
 
+https://github.com/pymupdf/PyMuPDF/releases/download/1.22.3/PyMuPDF-1.22.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
 # 數值與圖像處理
 numpy==1.24.4
 scipy
