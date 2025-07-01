@@ -44,6 +44,13 @@ async def _keep_alive():
         print("💡 still alive...")
         await asyncio.sleep(3600)
 
+@app.get("/debug")
+def debug_check():
+    return {
+        "routes": [route.path for route in app.routes]
+    }
+
+
 # 健康檢查路由
 @app.get("/")
 def health_check():
