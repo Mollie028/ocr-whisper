@@ -1,25 +1,21 @@
-FROM python:3.9-bullseye
+FROM python:3.11-slim-buster
 
 WORKDIR /app
 
-# 安裝必要套件（libgl1 等用於 PaddleOCR）
 RUN apt-get update && apt-get install -y \
     libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 \
-    libopenblas-dev \
     gcc build-essential python3-dev pkg-config curl \
     && apt-get clean
 
-# 安裝 Python 套件
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt --no-cache-dir
-RUN pip install PyMuPDF==1.22.3
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
-# 設定 Python 模組路徑
-ENV PYTHONPATH=/app/backend
+# ⚠️ 很重要！這個讓 FastAPI 找得到 backend 裡的模組
+ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
+# 不要加 --app-dir，因為 main.py 就在 /app 根目錄
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
