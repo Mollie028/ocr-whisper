@@ -39,6 +39,6 @@ async def _keep_alive():
     while True:
         print("💡 still alive...")
         await asyncio.sleep(3600)
-
 @app.get("/")
 def health_check():
+    return {"status": "ok"} # 添加一個簡單的 JSON 回應
