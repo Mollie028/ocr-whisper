@@ -1,6 +1,4 @@
 FROM python:3.11-slim-buster
-
-# 設定環境變數，讓構建過程不詢問任何互動式問題
 ENV DEBIAN_FRONTEND=noninteractive
 
 
@@ -22,21 +20,19 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libharfbuzz-dev \
     libfribidi-dev \
+    liblcms2-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    libsndfile1-dev \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
     && rm -rf /var/lib/apt/lists/*
-# 設定工作目錄
-WORKDIR /app
 
-# 將 requirements.txt 複製到容器中並安裝 Python 依賴
+
+WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# 將應用程式代碼複製到容器中
 COPY . .
-
-# 設定環境變數 PORT，讓應用程式監聽 Railway 提供的端口
 ENV PORT 8000
-
-# 暴露應用程式監聽的端口
 EXPOSE 8000
-
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
