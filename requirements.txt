@@ -27,3 +27,4 @@ google
 httpx
 opt_einsum
 astor
+paddleocr==2.6.1.3
