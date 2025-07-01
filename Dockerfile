@@ -1,27 +1,35 @@
 FROM python:3.11-slim-buster
 
+# 設定環境變數，讓構建過程不詢問任何互動式問題
+ENV DEBIAN_FRONTEND=noninteractive
+
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libmupdf-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    poppler-utils \
+    libgl1-mesa-glx \
+    libsm6 \
+    libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 設定工作目錄
 WORKDIR /app
 
-# 安裝系統依賴
-RUN apt-get update && apt-get install -y \
-    libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 \
-    gcc build-essential python3-dev pkg-config curl \
-    && apt-get clean
-
-# 安裝 Python 套件
+# 將 requirements.txt 複製到容器中並安裝 Python 依賴
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
-RUN pip install PyMuPDF==1.22.3
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 複製專案程式碼
+# 將應用程式代碼複製到容器中
 COPY . .
 
-# 設定 Python 路徑（讓 main.py 可以 import backend）
-ENV PYTHONPATH=/app
+# 設定環境變數 PORT，讓應用程式監聽 Railway 提供的端口
+ENV PORT 8000
 
-# 對外開放 port
+# 暴露應用程式監聽的端口
 EXPOSE 8000
 
-# 啟動 API
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
