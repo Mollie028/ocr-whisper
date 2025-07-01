@@ -10,7 +10,7 @@ RUN apt-get update && \
         libharfbuzz0b \
         libfreetype6 \
         libfontconfig1 \
-        libjpeg-turbo \
+        libjpeg62-turbo \
         libpng16-16 \
         zlib1g \
         # 如果 paddleocr 在運行時有其他系統依賴，可以視情況再加入
