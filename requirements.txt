@@ -16,7 +16,7 @@ opencv-python-headless
 pdf2image
 
 # 數值與圖像處理
-numpy
+numpy==1.24.4
 scipy
 imgaug
 pyclipper
