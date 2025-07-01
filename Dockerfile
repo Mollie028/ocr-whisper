@@ -6,19 +6,18 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 \
     gcc build-essential python3-dev pkg-config curl \
-    libmupdf-dev \
     && apt-get clean
 
 # 安裝 Python 套件
 COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
-
+RUN pip install PyMuPDF==1.22.3
 
 # 複製專案程式碼
 COPY . .
 
-# 設定 Python 路徑（可 import backend）
+# 設定 Python 路徑（讓 main.py 可以 import backend）
 ENV PYTHONPATH=/app
 
 # 對外開放 port
