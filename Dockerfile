@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
-RUN pip install PyMuPDF==1.22.3
+
 
 # 複製專案程式碼
 COPY . .
