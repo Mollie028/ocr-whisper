@@ -9,13 +9,20 @@ RUN apt-get update && apt-get install -y \
     libmupdf-dev \
     libjpeg-dev \
     libpng-dev \
+    libtiff-dev \
     libfreetype6-dev \
+    libwebp-dev \
+    libopenjp2-7-dev \
     poppler-utils \
     libgl1-mesa-glx \
     libsm6 \
     libxext6 \
+    pkg-config \
+    cmake \
+    zlib1g-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
     && rm -rf /var/lib/apt/lists/*
-
 # 設定工作目錄
 WORKDIR /app
 
