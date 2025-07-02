@@ -30,5 +30,6 @@ ENV PORT 8000
 # 暴露埠 (可選，但建議保留)
 EXPOSE 8000
 
+
 # 啟動應用程式
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--worker-class", "uvicorn.workers.UvicornWorker", "--workers", "1", "main:app"]
