@@ -10,7 +10,7 @@ RUN apt-get update && \
         libharfbuzz0b \
         libfreetype6 \
         libfontconfig1 \
-        libjpeg62-turbo \ # 這裡必須是 libjpeg62-turbo
+        libjpeg62-turbo \ # <-- **這個是關鍵，確認是這個名稱**
         libpng16-16 \
         zlib1g \
         # 如果 paddleocr 在運行時有其他系統依賴，可以視情況再加入
@@ -31,5 +31,4 @@ ENV PORT 8000
 EXPOSE 8000
 
 # 啟動應用程式
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
