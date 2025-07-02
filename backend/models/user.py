@@ -1,22 +1,10 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from sqlalchemy import Column, Integer, String
+from backend.core.db import Base
 
-class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
+class User(Base):
+    __tablename__ = "users"
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-class UserOut(BaseModel):
-    id: int
-    username: str
-    email: str
-    role: str
-
-class UserInDB(UserOut):
-    hashed_password: str
-
-
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(String, default="user")
