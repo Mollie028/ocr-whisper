@@ -1,12 +1,14 @@
 FROM python:3.9-slim
 
-# 安裝必要套件（避免 libpng/libjpeg 錯誤）
+# 安裝必要套件 (避免 libpng/libjpeg 錯誤)
+# 並添加 libgomp1
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxrender1 \
-    libxext6 \
+    libxexts \
+    libgomp1 \  # <-- 在這裡添加這行
     && rm -rf /var/lib/apt/lists/*
 
 # 建立工作目錄
@@ -21,4 +23,3 @@ COPY . .
 
 # 使用 gunicorn 啟動 FastAPI
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "uvicorn.workers.UvicornWorker", "main:app"]
-
