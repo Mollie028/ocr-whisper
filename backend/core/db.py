@@ -1,22 +1,14 @@
-import psycopg2
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 import os
-from psycopg2.extras import RealDictCursor
-import urllib.parse as up
 
-def get_conn():
-    dsn = os.getenv("DATABASE_URL")
-    if not dsn:
-        raise Exception("❌ DATABASE_URL 未設定")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-    up.uses_netloc.append("postgres")
-    url = up.urlparse(dsn)
+if not DATABASE_URL:
+    raise Exception("❌ DATABASE_URL 未設定")
 
-    return psycopg2.connect(
-        database=url.path[1:],
-        user=url.username,
-        password=url.password,
-        host=url.hostname,
-        port=url.port,
-        cursor_factory=RealDictCursor,
-        sslmode="require"
-    )
+# 建立 SQLAlchemy 的 Engine、Session、Base
+engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
