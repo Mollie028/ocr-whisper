@@ -29,7 +29,3 @@ async def startup_event():
     logger.info("FastAPI application startup complete and ready to receive requests.")
 
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    logger.info(f"Uvicorn will run on 0.0.0.0:{port}") # 添加日誌
-    uvicorn.run(app, host="0.0.0.0", port=port)
