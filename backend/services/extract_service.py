@@ -2,8 +2,8 @@ import os
 import json
 import requests
 from sqlalchemy.orm import Session
-from backend.models.user import Card
-from backend.core.db import get_db    # 若你有用 FastAPI 的 Depends 時會用到
+from backend.core.db import SessionLocal  # ✅ 使用 ORM 版本
+from backend.models.user import Card  # ✅ 你剛剛已經放到 user.py 裡了
 
 
 def extract_fields_from_llm(text: str) -> dict:
@@ -42,14 +42,20 @@ def extract_fields_from_llm(text: str) -> dict:
     return json.loads(parsed_text[start:end])
 
 
-def save_extracted_fields_to_db(record_id: int, fields: dict, db: Session):
-    card = db.query(Card).filter(Card.id == record_id).first()
-    if not card:
-        raise Exception(f"❌ 無法找到 id 為 {record_id} 的名片紀錄")
-    
-    card.name = fields.get("name")
-    card.phone = fields.get("phone")
-    card.email = fields.get("email")
-    card.title = fields.get("title")
-    card.company_name = fields.get("company_name")
-    db.commit()
+def save_extracted_fields_to_db(record_id: int, fields: dict):
+    db = SessionLocal()
+    try:
+        card = db.query(Card).filter(Card.id == record_id).first()
+        if not card:
+            raise Exception(f"❌ 找不到 ID 為 {record_id} 的名片資料")
+
+        card.name = fields.get("name")
+        card.phone = fields.get("phone")
+        card.email = fields.get("email")
+        card.title = fields.get("title")
+        card.company_name = fields.get("company_name")
+
+        db.commit()
+    finally:
+        db.close()
+
