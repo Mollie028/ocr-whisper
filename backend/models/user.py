@@ -1,14 +1,18 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from backend.core.db import Base
+from datetime import datetime
 
 # --- 使用者資料表 ---
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False)
-    password = Column(String, nullable=False)
-    role = Column(String, default="user")
+    company_name = Column(String, nullable=True)
+    username = Column(String, unique=True, index=True)
+    password_hash = Column(String)
+    is_admin = Column(Boolean, default=False)
+    can_view_all = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 # --- 名片資料表（Card）---
 class Card(Base):
@@ -25,11 +29,13 @@ class Card(Base):
 
 # --- 以下為 Pydantic schema ---
 from pydantic import BaseModel, Field
+from typing import Optional
 
 # 註冊使用者用
 class UserCreate(BaseModel):
     username: str = Field(..., example="lyh")
     password: str = Field(..., example="123456")
+    company_name: Optional[str] = None
 
 # 登入用
 class UserLogin(BaseModel):
@@ -40,7 +46,7 @@ class UserLogin(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
-    role: str
+    is_admin: bool
 
     class Config:
         orm_mode = True
