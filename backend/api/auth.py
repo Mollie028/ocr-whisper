@@ -1,97 +1,43 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from psycopg2.extras import RealDictCursor
-from backend.core.db import get_conn
-from backend.core.security import hash_password, verify_password, create_jwt_token
-from datetime import datetime  
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+from core.db import get_db
+from services import user_service
+from core import security
 
-# --------------------
-# 輸入模型
-# --------------------
-class RegisterInput(BaseModel):
+router = APIRouter()
+
+# ---------- 請求模型 ----------
+class RegisterRequest(BaseModel):
     username: str
     password: str
-    role: str  # "admin" 或 "user"
-    company_name: str = ""  
+    role: str
 
-class LoginInput(BaseModel):
+class LoginRequest(BaseModel):
     username: str
     password: str
 
-# --------------------
-# 註冊 API
-# --------------------
+# ---------- 註冊 ----------
 @router.post("/register")
-def register(data: RegisterInput):
-    conn = get_conn()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
-    result = cur.fetchone()
-    print("👉 查詢結果：", result)
-    
-    if result:
-        raise HTTPException(status_code=400, detail="此帳號已存在，請換一個")
-
-    hashed = hash_password(data.password)
-    is_admin = data.role == "admin"
-    can_view_all = is_admin
-
-    print("✅ 準備寫入：", data.username)
-
-    cur.execute(
-        """
-        INSERT INTO users (company_name, username, password_hash, created_at, is_admin, can_view_all)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
-        (
-            data.company_name,
-            data.username,
-            hashed,
-            datetime.utcnow(),  
-            is_admin,
-            can_view_all
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    existing_user = user_service.get_user_by_username(db, request.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="帳號已存在"
         )
-    )
+    user = user_service.create_user(db, request.username, request.password, request.role)
+    return {"message": "註冊成功", "username": user.username, "role": user.role}
 
-    conn.commit()
-    print("✅ commit 完成")
-
-    cur.close()
-    conn.close()
-
-    return {"msg": "✅ 註冊成功"}
-
-# --------------------
-# 登入 API
-# --------------------
+# ---------- 登入 ----------
 @router.post("/login")
-def login(data: LoginInput):
-    conn = get_conn()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
-    cur.execute("SELECT * FROM users WHERE username = %s", (data.username,))
-    user = cur.fetchone()
-
-    if not user or not verify_password(data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
-
-    token = create_jwt_token(
-        user_id=user["id"],
-        role="admin" if user["is_admin"] else "user"
-    )
-
-    cur.close()
-    conn.close()
-
-    return {
-        "access_token": token,
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "role": "admin" if user["is_admin"] else "user",
-            "can_view_all": user["can_view_all"]
-        }
-    }
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    user = user_service.authenticate_user(db, request.username, request.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="帳號或密碼錯誤"
+        )
+    token = security.create_access_token({"sub": user.username, "role": user.role})
+    return {"access_token": token, "token_type": "bearer", "role": user.role}
