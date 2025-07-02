@@ -1,35 +1,23 @@
-# Dockerfile
-FROM python:3.11-buster
+FROM python:3.9-slim
 
-WORKDIR /app
-
-# 精簡 apt-get install，只保留 PyMuPDF / MuPDF 運行時可能需要的核心依賴
-# 這些是為了讓預編譯的 PyMuPDF wheel 能夠正確運行，而不是為了編譯源碼
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libharfbuzz0b \
-        libfreetype6 \
-        libfontconfig1 \
-        libjpeg62-turbo \ # <-- **這個是關鍵，確認是這個名稱**
-        libpng-dev \
-        zlib1g \
-        # 如果 paddleocr 在運行時有其他系統依賴，可以視情況再加入
-        # 但現在先最小化，以排除 PyMuPDF 編譯問題
+# 安裝必要套件（避免 libpng/libjpeg 錯誤）
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# 複製 requirements.txt 並安裝 Python 依賴
+# 建立工作目錄
+WORKDIR /app
+
+# 複製 requirements 並安裝
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 複製應用程式代碼
+# 複製所有專案程式碼
 COPY . .
 
-# 設定環境變數，告知 Uvicorn 監聽 8000 埠 (Railway 會透過 PORT 變數自動映射)
-ENV PORT 8000
-
-# 暴露埠 (可選，但建議保留)
-EXPOSE 8000
-
-
-# 啟動應用程式
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--worker-class", "uvicorn.workers.UvicornWorker", "--workers", "1", "main:app"]
+# 使用 gunicorn 啟動 FastAPI
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--worker-class", "uvicorn.workers.UvicornWorker", "main:app"]
