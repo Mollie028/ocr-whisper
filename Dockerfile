@@ -11,7 +11,7 @@ RUN apt-get update && \
         libfreetype6 \
         libfontconfig1 \
         libjpeg62-turbo \ # <-- **這個是關鍵，確認是這個名稱**
-        libpng16-16 \
+        libpng-dev \
         zlib1g \
         # 如果 paddleocr 在運行時有其他系統依賴，可以視情況再加入
         # 但現在先最小化，以排除 PyMuPDF 編譯問題
