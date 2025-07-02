@@ -15,7 +15,13 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
     # 建立新使用者
     hashed_pw = get_password_hash(user_data.password)
-    new_user = User(username=user_data.username, password=hashed_pw)
+    new_user = User(
+        username=user_data.username,
+        password_hash=hashed_pw,
+        company_name=user_data.company_name,
+        is_admin=False,
+        can_view_all=False
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -24,8 +30,17 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == login_data.username).first()
-    if not user or not verify_password(login_data.password, user.password):
+    if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="❌ 使用者名稱或密碼錯誤")
 
-    token = create_access_token(data={"sub": user.username, "role": user.role})
-    return {"access_token": token, "token_type": "bearer", "role": user.role}
+    # 建立 JWT token，含 is_admin 權限
+    token = create_access_token(data={
+        "sub": user.username,
+        "is_admin": user.is_admin
+    })
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "is_admin": user.is_admin
+    }
