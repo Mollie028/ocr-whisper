@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from backend.core.db import Base
- 
 
+# --- 使用者資料表 ---
 class User(Base):
     __tablename__ = "users"
 
@@ -10,17 +10,33 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, default="user")
 
-# --- 以下為 Pydantic schema 驗證用 ---
+# --- 名片資料表（Card）---
+class Card(Base):
+    __tablename__ = "business_cards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_url = Column(String, nullable=True)
+    raw_text = Column(String, nullable=True)
+    name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    title = Column(String, nullable=True)
+    company_name = Column(String, nullable=True)
+
+# --- 以下為 Pydantic schema ---
 from pydantic import BaseModel, Field
 
+# 註冊使用者用
 class UserCreate(BaseModel):
     username: str = Field(..., example="lyh")
     password: str = Field(..., example="123456")
 
+# 登入用
 class UserLogin(BaseModel):
     username: str
     password: str
 
+# 查詢使用者資訊用
 class UserOut(BaseModel):
     id: int
     username: str
