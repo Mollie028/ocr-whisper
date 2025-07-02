@@ -1,7 +1,9 @@
 import os
 import json
 import requests
-from backend.core.db import get_conn
+from sqlalchemy.orm import Session
+from backend.models.card import Card  # 確保這個 model 有對應欄位
+from backend.core.db import get_db    # 若你有用 FastAPI 的 Depends 時會用到
 
 
 def extract_fields_from_llm(text: str) -> dict:
@@ -34,28 +36,20 @@ def extract_fields_from_llm(text: str) -> dict:
     res.raise_for_status()
     parsed_text = res.json()["choices"][0]["message"]["content"].strip()
 
+    # 只取出 {...} JSON 部分
     start = parsed_text.find("{")
     end = parsed_text.rfind("}") + 1
     return json.loads(parsed_text[start:end])
 
-def save_extracted_fields_to_db(record_id: int, fields: dict):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE business_cards
-        SET name = %s, phone = %s, email = %s, title = %s, company_name = %s
-        WHERE id = %s
-        """,
-        (
-            fields.get("name"),
-            fields.get("phone"),
-            fields.get("email"),
-            fields.get("title"),
-            fields.get("company_name"),
-            record_id
-        )
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+
+def save_extracted_fields_to_db(record_id: int, fields: dict, db: Session):
+    card = db.query(Card).filter(Card.id == record_id).first()
+    if not card:
+        raise Exception(f"❌ 無法找到 id 為 {record_id} 的名片紀錄")
+    
+    card.name = fields.get("name")
+    card.phone = fields.get("phone")
+    card.email = fields.get("email")
+    card.title = fields.get("title")
+    card.company_name = fields.get("company_name")
+    db.commit()
