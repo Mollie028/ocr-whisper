@@ -6,9 +6,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from backend.api import auth, ocr, whisper  # ✅ 加入這行
+from backend.core.db import engine
+from backend.models import user
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
 logger = logging.getLogger(__name__)
+user.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
