@@ -1,43 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-
 from backend.core.db import get_db
-from backend.services import user_service
-from backend.core import security
+from backend.models.user import User, UserCreate, UserLogin, UserOut
+from backend.core.security import get_password_hash, verify_password, create_access_token
 
 router = APIRouter()
 
-# ---------- 請求模型 ----------
-class RegisterRequest(BaseModel):
-    username: str
-    password: str
-    role: str
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-
-# ---------- 註冊 ----------
-@router.post("/register")
-def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    existing_user = user_service.get_user_by_username(db, request.username)
+@router.post("/register", response_model=UserOut)
+def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # 檢查使用者是否已存在
+    existing_user = db.query(User).filter(User.username == user_data.username).first()
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="帳號已存在"
-        )
-    user = user_service.create_user(db, request.username, request.password, request.role)
-    return {"message": "註冊成功", "username": user.username, "role": user.role}
+        raise HTTPException(status_code=400, detail="❌ 使用者已存在")
 
-# ---------- 登入 ----------
+    # 建立新使用者
+    hashed_pw = get_password_hash(user_data.password)
+    new_user = User(username=user_data.username, password=hashed_pw)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
 @router.post("/login")
-def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = user_service.authenticate_user(db, request.username, request.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="帳號或密碼錯誤"
-        )
-    token = security.create_access_token({"sub": user.username, "role": user.role})
+def login(login_data: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == login_data.username).first()
+    if not user or not verify_password(login_data.password, user.password):
+        raise HTTPException(status_code=401, detail="❌ 使用者名稱或密碼錯誤")
+
+    token = create_access_token(data={"sub": user.username, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "role": user.role}
