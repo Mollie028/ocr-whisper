@@ -20,4 +20,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 使用 gunicorn 啟動 FastAPI
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--worker-class", "uvicorn.workers.UvicornWorker", "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "uvicorn.workers.UvicornWorker", "main:app"]
+
