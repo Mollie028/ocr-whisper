@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from sqlalchemy.orm import Session
-from backend.models.card import Card  # 確保這個 model 有對應欄位
+from backend.models.user import Card
 from backend.core.db import get_db    # 若你有用 FastAPI 的 Depends 時會用到
 
 
