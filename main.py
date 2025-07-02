@@ -1,4 +1,3 @@
-# main.py
 import os
 from fastapi import FastAPI
 import uvicorn
@@ -17,8 +16,7 @@ app = FastAPI()
 
 @app.get("/")
 async def root():
-    # 僅返回一個最簡單的字串，不進行任何計算或外部調用
-    return {"message": "Hello from Railway! - Super Minimal Test Confirmed!"}
+    return {"message": "✅ API is alive - from Railway!"}
 
 if __name__ == "__main__":
     # 從環境變數獲取 PORT，如果沒有則預設 8000
