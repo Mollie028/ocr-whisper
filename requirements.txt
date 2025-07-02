@@ -3,6 +3,7 @@ uvicorn
 starlette==0.27.0
 h11>=0.14.0
 click>=8.1.0
+gunicorn
 
 # PaddleOCR 與模型
 paddlepaddle==2.5.2
