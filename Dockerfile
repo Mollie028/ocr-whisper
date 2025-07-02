@@ -9,8 +9,9 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libxext6 \
     libgomp1 \
-    ttf-wqy-zenhei \  # ✅ 安裝中文字型以支援中文OCR
+    ttf-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/*
+
 
 # 設定工作目錄
 WORKDIR /app
