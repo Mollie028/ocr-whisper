@@ -15,11 +15,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # -------------------
-# ✅ 自動建立資料表（只會執行一次）
-# -------------------
-Base.metadata.create_all(bind=engine)
-
-# -------------------
 # ✅ FastAPI 初始化
 # -------------------
 app = FastAPI()
