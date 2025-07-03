@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut
 from backend.core.security import get_password_hash, verify_password, create_access_token
-
+import traceback
 router = APIRouter()
 
 # ✅ 註冊新使用者
@@ -53,5 +53,6 @@ def get_users(db: Session = Depends(get_db)):
         users = db.query(User).all()
         return [{"id": u.id, "username": u.username, "is_admin": u.is_admin} for u in users]
     except Exception as e:
+        print("❌ 錯誤追蹤：", traceback.format_exc())  # 將完整錯誤印出
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
 
