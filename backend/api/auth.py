@@ -6,15 +6,15 @@ from backend.core.security import get_password_hash, verify_password, create_acc
 
 router = APIRouter()
 
+# ✅ 註冊新使用者
 @router.post("/register", response_model=UserOut)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # 檢查使用者是否已存在
+def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     existing_user = db.query(User).filter(User.username == user_data.username).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="❌ 使用者已存在")
+        raise HTTPException(status_code=400, detail="❌ 此帳號已存在，請換一個")
 
-    # 建立新使用者
     hashed_pw = get_password_hash(user_data.password)
+
     new_user = User(
         username=user_data.username,
         password_hash=hashed_pw,
@@ -27,13 +27,14 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
+
+# ✅ 使用者登入
 @router.post("/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == login_data.username).first()
     if not user or not verify_password(login_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="❌ 使用者名稱或密碼錯誤")
+        raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
 
-    # 建立 JWT token，含 is_admin 權限
     token = create_access_token(data={
         "sub": user.username,
         "is_admin": user.is_admin
@@ -44,3 +45,20 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "is_admin": user.is_admin
     }
+
+
+# ✅ 查詢所有使用者（僅測試用）
+@router.get("/get_users")
+def get_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "company_name": u.company_name,
+            "is_admin": u.is_admin,
+            "can_view_all": u.can_view_all,
+            "created_at": u.created_at
+        }
+        for u in users
+    ]
