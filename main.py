@@ -1,49 +1,64 @@
-import os
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
+from backend.api import auth, ocr, whisper
+from backend.core.db import engine
+from backend.models.user import Base
 import logging
 import sys
-from fastapi import FastAPI
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+import os
 
-from backend.api import auth, ocr, whisper  # ✅ 加入這行
-from backend.core.db import engine
-from backend.models import user
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
+# -------------------
+# ✅ Logging 設定
+# -------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-user.Base.metadata.create_all(bind=engine)
 
+# -------------------
+# ✅ 自動建立資料表（只會執行一次）
+# -------------------
+Base.metadata.create_all(bind=engine)
+
+# -------------------
+# ✅ FastAPI 初始化
+# -------------------
 app = FastAPI()
 
+# -------------------
+# ✅ CORS 設定
+# -------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 建議換成你的前端網址
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -------------------
 # ✅ 註冊路由
+# -------------------
 app.include_router(auth.router)
 app.include_router(ocr.router)
 app.include_router(whisper.router)
 
+# -------------------
+# ✅ 例外錯誤處理
+# -------------------
 @app.middleware("http")
-async def catch_exceptions_middleware(request, call_next):
+async def catch_exceptions(request: Request, call_next):
     try:
-        response = await call_next(request)
-        return response
+        return await call_next(request)
     except Exception as e:
-        logger.error(f"Unhandled exception caught by middleware: {e}", exc_info=True)
-        sys.stderr.flush()
-        return JSONResponse(content={"message": "Internal Server Error"}, status_code=500)
+        logger.error(f"❗ 系統錯誤：{e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"message": "🚨 系統內部錯誤"})
 
 @app.get("/")
-async def root():
-    return {"message": "Hello from Railway! - Minimal Test OK - Without Models!"}
+def health_check():
+    return {"message": "✅ API 正常運作中！"}
 
 @app.on_event("startup")
-async def startup_event():
-    logger.info("FastAPI application is starting up.")
-    sys.stdout.flush()
-    try:
-        test_val = os.getenv("PORT", "8000")
-        logger.info(f"Environment PORT variable: {test_val}")
-        sys.stdout.flush()
-    except Exception as e:
-        logger.error(f"Error accessing environment variable: {e}", exc_info=True)
-        sys.stderr.flush()
-    logger.info("FastAPI application startup complete and ready to receive requests.")
-    sys.stdout.flush()
+async def on_startup():
+    logger.info("🚀 FastAPI 正在啟動...")
+    port = os.getenv("PORT", "8000")
+    logger.info(f"環境 PORT: {port}")
