@@ -23,7 +23,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserOut:
         can_view_all=False
     )
     db.add(new_user)
-    db.commit()
+    db.commit() 
     db.refresh(new_user)
     return new_user
 
@@ -47,18 +47,11 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     }
 
 
-# ✅ 查詢所有使用者（僅測試用）
 @router.get("/get_users")
 def get_users(db: Session = Depends(get_db)):
-    users = db.query(User).all()
-    return [
-        {
-            "id": u.id,
-            "username": u.username,
-            "company_name": u.company_name,
-            "is_admin": u.is_admin,
-            "can_view_all": u.can_view_all,
-            "created_at": u.created_at
-        }
-        for u in users
-    ]
+    try:
+        users = db.query(User).all()
+        return [{"id": u.id, "username": u.username, "is_admin": u.is_admin} for u in users]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
+
