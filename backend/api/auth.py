@@ -20,14 +20,15 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         
         # 密碼雜湊
         hashed_password = get_password_hash(user.password)
-        
-        # 建立使用者
+                
         new_user = User(
             username=user.username,
-            hashed_password=hashed_password,
+            password_hash=hashed_password,  
             company_name=user.company_name,
             is_admin=False
         )
+
+
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
