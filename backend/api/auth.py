@@ -17,17 +17,22 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserOut:
 
         hashed_pw = get_password_hash(user_data.password)
 
+        # ✅ 加入 company_name 預設空字串處理
+        company_name = user_data.company_name or ""
+
         new_user = User(
             username=user_data.username,
             password_hash=hashed_pw,
-            is_admin=False,
-            can_view_all=False
+            company_name=company_name,
+            is_admin=(user_data.role == "admin"),
+            can_view_all=(user_data.role == "admin")
         )
 
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
         return new_user
+
     except Exception as e:
         print("❌ 註冊錯誤：", traceback.format_exc())
         return JSONResponse(status_code=500, content={"message": "🚨 系統內部錯誤"})
