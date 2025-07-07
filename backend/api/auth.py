@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut
@@ -9,23 +10,27 @@ router = APIRouter()
 # ✅ 註冊新使用者
 @router.post("/register", response_model=UserOut)
 def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserOut:
-    existing_user = db.query(User).filter(User.username == user_data.username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="❌ 此帳號已存在，請換一個")
+    try:
+        existing_user = db.query(User).filter(User.username == user_data.username).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="❌ 此帳號已存在，請換一個")
 
-    hashed_pw = get_password_hash(user_data.password)
+        hashed_pw = get_password_hash(user_data.password)
 
-    new_user = User(
-        username=user_data.username,
-        password_hash=hashed_pw,
-        is_admin=False,
-        can_view_all=False
-    )
+        new_user = User(
+            username=user_data.username,
+            password_hash=hashed_pw,
+            is_admin=False,
+            can_view_all=False
+        )
 
-    db.add(new_user)
-    db.commit() 
-    db.refresh(new_user)
-    return new_user
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
+    except Exception as e:
+        print("❌ 註冊錯誤：", traceback.format_exc())
+        return JSONResponse(status_code=500, content={"message": "🚨 系統內部錯誤"})
 
 
 # ✅ 使用者登入
