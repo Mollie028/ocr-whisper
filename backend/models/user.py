@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from backend.core.db import Base
 from datetime import datetime
+from typing import Optional
 
 # --- 使用者資料表 ---
 class User(Base):
