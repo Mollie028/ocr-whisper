@@ -18,10 +18,10 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     new_user = User(
         username=user_data.username,
         password_hash=hashed_pw,
-        company_name=user_data.company_name,
         is_admin=False,
         can_view_all=False
     )
+
     db.add(new_user)
     db.commit() 
     db.refresh(new_user)
