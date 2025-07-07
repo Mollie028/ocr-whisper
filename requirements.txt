@@ -6,7 +6,7 @@ click>=8.1.0
 gunicorn
 
 # 密碼加密
-bcrypt==4.0.1
+bcrypt==3.2.2
 passlib[bcrypt]
 # trigger rebuild
 
