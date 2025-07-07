@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut
 from backend.core.security import get_password_hash, verify_password, create_access_token
+from services.user_service import get_user_by_username
+
 import traceback
 router = APIRouter()
 
