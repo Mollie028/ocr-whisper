@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
@@ -5,8 +9,7 @@ from backend.api import auth, ocr, whisper
 from backend.core.db import engine
 from backend.models.user import Base
 import logging
-import sys
-import os
+
 
 # -------------------
 # ✅ Logging 設定
