@@ -5,6 +5,10 @@ h11>=0.14.0
 click>=8.1.0
 gunicorn
 
+# 密碼加密
+bcrypt==4.0.1
+passlib[bcrypt]
+
 # PaddleOCR 與模型
 paddlepaddle==2.5.2
 paddleocr==2.6.1.3
@@ -28,8 +32,6 @@ scikit-image
 # API 與驗證
 requests
 psycopg2-binary
-passlib[bcrypt]
-bcrypt>=3.2.0
 python-jose[cryptography]
 python-dotenv
 sqlalchemy
