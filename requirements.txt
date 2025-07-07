@@ -8,7 +8,7 @@ gunicorn
 # 密碼加密
 bcrypt==3.2.2
 passlib[bcrypt]
-# trigger rebuild
+# trigger rebuild 20250707
 
 
 # PaddleOCR 與模型
