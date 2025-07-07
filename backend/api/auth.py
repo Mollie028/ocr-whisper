@@ -8,34 +8,34 @@ import traceback
 router = APIRouter()
 
 # ✅ 註冊新使用者
-@router.post("/register", response_model=UserOut)
-def register(user_data: UserCreate, db: Session = Depends(get_db)) -> UserOut:
+@router.post("/register")
+def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        existing_user = db.query(User).filter(User.username == user_data.username).first()
-        if existing_user:
-            raise HTTPException(status_code=400, detail="❌ 此帳號已存在，請換一個")
-
-        hashed_pw = get_password_hash(user_data.password)
-
-        # ✅ 加入 company_name 預設空字串處理
-        company_name = user_data.company_name or ""
-
+        db_user = get_user_by_username(db, user.username)
+        if db_user:
+            return JSONResponse(status_code=400, content={"message": "⚠️ 帳號已存在"})
+        
+        # 密碼雜湊
+        hashed_password = get_password_hash(user.password)
+        
+        # 建立使用者
         new_user = User(
-            username=user_data.username,
-            password_hash=hashed_pw,
-            company_name=company_name,
-            is_admin=(user_data.role == "admin"),
-            can_view_all=(user_data.role == "admin")
+            username=user.username,
+            hashed_password=hashed_password,
+            company_name=user.company_name,
+            is_admin=False
         )
-
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        return new_user
 
+        return {"id": new_user.id, "username": new_user.username, "is_admin": new_user.is_admin}
+    
     except Exception as e:
-        print("❌ 註冊錯誤：", traceback.format_exc())
-        return JSONResponse(status_code=500, content={"message": "🚨 系統內部錯誤"})
+        # 把錯誤詳細資訊印出來
+        import traceback
+        print(traceback.format_exc())  # 印在 logs 裡
+        return JSONResponse(status_code=500, content={"message": f"🚨 系統內部錯誤：{str(e)}"})
 
 
 # ✅ 使用者登入
