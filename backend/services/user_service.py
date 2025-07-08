@@ -6,22 +6,25 @@ from backend.core.security import get_password_hash, verify_password
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
-# 建立新使用者（已加入 is_admin 和 can_view_all 欄位）
 def create_user(db: Session, user: UserCreate):
     hashed_password = get_password_hash(user.password)
 
-    # 新增權限欄位
+    # 根據輸入角色給予不同權限
+    is_admin = user.role == "admin"
+    can_view_all = user.role in ["admin", "viewer"]  # 如果你有 viewer 權限
+
     db_user = User(
         username=user.username,
         hashed_password=hashed_password,
-        is_admin=user.is_admin,
-        can_view_all=user.can_view_all,
+        company_name=user.company_name,
+        is_admin=is_admin,
+        can_view_all=can_view_all
     )
-
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
+
 
 # 登入驗證
 def authenticate_user(db: Session, username: str, password: str):
