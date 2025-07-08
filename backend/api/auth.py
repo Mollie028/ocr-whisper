@@ -26,7 +26,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
             username=user.username,
             password_hash=hashed_password,
             company_name=user.company_name,
-            is_admin=is_admin
+            is_admin=user.is_admin
         )
 
         db.add(new_user)
