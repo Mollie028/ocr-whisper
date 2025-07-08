@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from backend.core.db import Base
 from datetime import datetime
 from typing import Optional
-
+from pydantic import BaseModel
 # --- 使用者資料表 ---
 class User(Base):
     __tablename__ = "users"
@@ -34,9 +34,10 @@ from typing import Optional
 
 # 註冊使用者用
 class UserCreate(BaseModel):
-    username: str = Field(..., example="lyh")
-    password: str = Field(..., example="123456")
+    username: str
+    password: str
     company_name: Optional[str] = None
+    is_admin: Optional[bool] = False
 
 # 登入用
 class UserLogin(BaseModel):
