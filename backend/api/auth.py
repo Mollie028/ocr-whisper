@@ -5,6 +5,7 @@ from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut
 from backend.core.security import get_password_hash, verify_password, create_access_token
 from backend.services.user_service import get_user_by_username
+from pydantic import BaseModel
 import traceback
 
 router = APIRouter()
@@ -74,3 +75,19 @@ def get_users(db: Session = Depends(get_db)):
     except Exception as e:
         print("❌ 錯誤追蹤：", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
+
+
+class UpdateUserRole(BaseModel):
+    username: str
+    is_admin: bool
+
+@router.post("/update_role")
+def update_user_role(data: UpdateUserRole, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == data.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    
+    user.is_admin = data.is_admin
+    db.commit()
+    return {"message": "使用者權限已更新", "is_admin": user.is_admin}
+
