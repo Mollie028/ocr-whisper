@@ -12,6 +12,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     password_hash = Column(String)
     is_admin = Column(Boolean, default=False)
+    role = Column(String, default="user")
     can_view_all = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
