@@ -5,40 +5,42 @@ from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut
 from backend.core.security import get_password_hash, verify_password, create_access_token
 from backend.services.user_service import get_user_by_username
-
-
 import traceback
+
 router = APIRouter()
 
-# ✅ 註冊新使用者
+# ✅ 註冊新使用者（包含 is_admin 參數）
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
         db_user = get_user_by_username(db, user.username)
         if db_user:
             return JSONResponse(status_code=400, content={"message": "⚠️ 帳號已存在"})
-        
-        # 密碼雜湊
+
+        # 依據前端傳入的 is_admin 決定權限
+        is_admin = user.is_admin if hasattr(user, "is_admin") else False
+
         hashed_password = get_password_hash(user.password)
-                
+
         new_user = User(
             username=user.username,
-            password_hash=hashed_password,  
+            password_hash=hashed_password,
             company_name=user.company_name,
-            is_admin=False
+            is_admin=is_admin
         )
-
 
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
 
-        return {"id": new_user.id, "username": new_user.username, "is_admin": new_user.is_admin}
-    
+        return {
+            "id": new_user.id,
+            "username": new_user.username,
+            "is_admin": new_user.is_admin
+        }
+
     except Exception as e:
-        # 把錯誤詳細資訊印出來
-        import traceback
-        print(traceback.format_exc())  # 印在 logs 裡
+        print(traceback.format_exc())
         return JSONResponse(status_code=500, content={"message": f"🚨 系統內部錯誤：{str(e)}"})
 
 
@@ -61,12 +63,12 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     }
 
 
+# ✅ 取得所有使用者（給管理員查詢用）
 @router.get("/get_users")
 def get_users(db: Session = Depends(get_db)):
     try:
         users = db.query(User).all()
         return [{"id": u.id, "username": u.username, "is_admin": u.is_admin} for u in users]
     except Exception as e:
-        print("❌ 錯誤追蹤：", traceback.format_exc())  # 將完整錯誤印出
+        print("❌ 錯誤追蹤：", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
-
