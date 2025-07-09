@@ -45,8 +45,6 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         return JSONResponse(status_code=500, content={"message": f"🚨 系統內部錯誤：{str(e)}"})
 
 
-# ✅ 使用者登入
-# ✅ 使用者登入
 @router.post("/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == login_data.username).first()
@@ -58,13 +56,14 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "is_admin": user.is_admin
     })
 
-    # ✅ 重點：加入 "role"
     return {
         "access_token": token,
         "token_type": "bearer",
         "is_admin": user.is_admin,
-        "role": "admin" if user.is_admin else "user"  # ✅ 新增這行
+        "role": "admin" if user.is_admin else "user",
+        "company_name": user.company_name   # ✅ 新增這一行！
     }
+
 
 # ✅ 取得所有使用者（給管理員查詢用）
 @router.get("/get_users")
