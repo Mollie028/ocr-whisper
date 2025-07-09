@@ -68,12 +68,14 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 # ✅ 取得所有使用者（給管理員查詢用）
 @router.get("/get_users")
-def get_users(db: Session = Depends(get_db)):
+def get_users(company_name: str = "", db: Session = Depends(get_db)):
     try:
-        users = db.query(User).all()
+        if company_name:
+            users = db.query(User).filter(User.company_name == company_name).all()
+        else:
+            users = db.query(User).all()
         return [{"id": u.id, "username": u.username, "is_admin": u.is_admin} for u in users]
     except Exception as e:
-        print("❌ 錯誤追蹤：", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
 
 
