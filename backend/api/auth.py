@@ -60,9 +60,10 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "access_token": token,
         "token_type": "bearer",
         "is_admin": user.is_admin,
-        "role": "admin" if user.is_admin else "user",
-        "company_name": user.company_name   # ✅ 新增這一行！
+        "company_name": user.company_name,
+        "role": "admin" if user.is_admin else "user"
     }
+
 
 
 # ✅ 取得所有使用者（給管理員查詢用）
