@@ -71,17 +71,26 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 def get_users(company_name: str = "", db: Session = Depends(get_db)):
     try:
         if company_name:
-            users = db.query(User).filter(User.company_name == company_name).all()
+            company_name = company_name.strip().lower()
+            users = db.query(User).filter(
+                User.company_name.isnot(None),
+                User.company_name.ilike(company_name)
+            ).all()
         else:
             users = db.query(User).all()
-        return [{"id": u.id, "username": u.username, "is_admin": u.is_admin} for u in users]
+
+        return [
+            {
+                "id": u.id,
+                "username": u.username,
+                "is_admin": u.is_admin,
+                "company_name": u.company_name
+            }
+            for u in users
+        ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
 
-
-class UpdateUserRole(BaseModel):
-    username: str
-    is_admin: bool
 
 @router.post("/update_role")
 def update_user_role(data: UpdateUserRole, db: Session = Depends(get_db)):
