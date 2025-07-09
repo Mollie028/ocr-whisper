@@ -1,3 +1,4 @@
+# ✅ backend/api/auth.py
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -10,26 +11,28 @@ import traceback
 
 router = APIRouter()
 
-# ✅ 註冊新使用者（包含 is_admin 參數）
+class UpdateUserRole(BaseModel):
+    username: str
+    is_admin: bool
+
+class UpdatePassword(BaseModel):
+    username: str
+    new_password: str
+
+# ✅ 註冊
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        db_user = get_user_by_username(db, user.username)
-        if db_user:
+        if get_user_by_username(db, user.username):
             return JSONResponse(status_code=400, content={"message": "⚠️ 帳號已存在"})
 
-        # 依據前端傳入的 is_admin 決定權限
-        is_admin = user.is_admin if hasattr(user, "is_admin") else False
-
         hashed_password = get_password_hash(user.password)
-
         new_user = User(
             username=user.username,
             password_hash=hashed_password,
             company_name=user.company_name,
-            is_admin=user.is_admin
+            is_admin=user.is_admin or False
         )
-
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
@@ -44,18 +47,14 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         print(traceback.format_exc())
         return JSONResponse(status_code=500, content={"message": f"🚨 系統內部錯誤：{str(e)}"})
 
-
+# ✅ 登入
 @router.post("/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == login_data.username).first()
+    user = get_user_by_username(db, login_data.username)
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
 
-    token = create_access_token(data={
-        "sub": user.username,
-        "is_admin": user.is_admin
-    })
-
+    token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -64,41 +63,41 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "role": "admin" if user.is_admin else "user"
     }
 
-
-
-# ✅ 取得所有使用者（給管理員查詢用）
+# ✅ 取得所有使用者（可依公司過濾）
 @router.get("/get_users")
 def get_users(company_name: str = "", db: Session = Depends(get_db)):
     try:
+        query = db.query(User)
         if company_name:
-            company_name = company_name.strip().lower()
-            users = db.query(User).filter(
-                User.company_name.isnot(None),
-                User.company_name.ilike(company_name)
-            ).all()
-        else:
-            users = db.query(User).all()
-
+            query = query.filter(User.company_name == company_name)
+        users = query.all()
         return [
             {
                 "id": u.id,
                 "username": u.username,
                 "is_admin": u.is_admin,
                 "company_name": u.company_name
-            }
-            for u in users
+            } for u in users
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
 
-
+# ✅ 更新角色權限
 @router.post("/update_role")
 def update_user_role(data: UpdateUserRole, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == data.username).first()
+    user = get_user_by_username(db, data.username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    
     user.is_admin = data.is_admin
     db.commit()
-    return {"message": "使用者權限已更新", "is_admin": user.is_admin}
+    return {"message": "✅ 使用者權限已更新"}
 
+# ✅ 更新密碼
+@router.put("/update_password")
+def update_password(data: UpdatePassword, db: Session = Depends(get_db)):
+    user = get_user_by_username(db, data.username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    user.password_hash = get_password_hash(data.new_password)
+    db.commit()
+    return {"message": "✅ 密碼更新成功"}
