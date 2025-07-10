@@ -57,13 +57,21 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
     try:
+        print("⚙️ 登入開始", flush=True)
+
         user = get_user_by_username(db, login_data.username)
+        print("👤 查詢結果：", user, flush=True)
+
         if not user or not verify_password(login_data.password, user.password_hash):
+            print("❌ 帳號或密碼錯誤", flush=True)
             raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
         if not user.is_active:
+            print("⛔️ 帳號被停用", flush=True)
             raise HTTPException(status_code=403, detail="⛔️ 帳號已被停用，請聯絡管理員")
 
         token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+        print("✅ 登入成功，Token：", token, flush=True)
+
         return {
             "access_token": token,
             "token_type": "bearer",
@@ -73,8 +81,9 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         }
     except Exception as e:
         import traceback
-        print("❌ login 錯誤：", traceback.format_exc())  # ←←← 這行要加上去！
+        print("❌ login 錯誤：", traceback.format_exc(), flush=True)
         raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
+
 
 
 
