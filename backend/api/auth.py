@@ -73,8 +73,9 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         }
     except Exception as e:
         import traceback
-        print("❌ login 錯誤：", traceback.format_exc())  # 印出詳細錯誤！
+        print("❌ login 錯誤：", traceback.format_exc())  # ←←← 這行要加上去！
         raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
+
 
 
 # ✅ 取得所有使用者（可依公司過濾）
