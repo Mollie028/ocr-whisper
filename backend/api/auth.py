@@ -71,14 +71,18 @@ def get_users(company_name: str = "", db: Session = Depends(get_db)):
         if company_name:
             query = query.filter(User.company_name == company_name)
         users = query.all()
-        return [
+       return [
             {
                 "id": u.id,
                 "username": u.username,
                 "is_admin": u.is_admin,
-                "company_name": u.company_name
-            } for u in users
+                "company_name": u.company_name,
+                "note": u.note,
+                "is_active": u.is_active,
+            }
+            for u in users
         ]
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
 
