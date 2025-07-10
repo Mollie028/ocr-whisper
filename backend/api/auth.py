@@ -84,14 +84,14 @@ def get_users(company_name: str = "", db: Session = Depends(get_db)):
                 "username": u.username,
                 "is_admin": u.is_admin,
                 "company_name": u.company_name,
-                "note": u.note,
-                "is_active": u.is_active,
+                "note": getattr(u, "note", None),
+                "is_active": getattr(u, "is_active", True),
             }
             for u in users
         ]
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
+
 
 # ✅ 更新角色權限
 @router.post("/update_role")
