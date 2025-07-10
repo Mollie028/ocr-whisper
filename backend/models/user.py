@@ -9,13 +9,12 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_name = Column(String, nullable=True)
-    username = Column(String, unique=True, index=True)
-    password_hash = Column(String)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    company_name = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False)
-    can_view_all = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+    is_active = Column(Boolean, default=True)
+    note = Column(String, nullable=True)  
 # --- 名片資料表（Card）---
 class Card(Base):
     __tablename__ = "business_cards"
