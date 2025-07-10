@@ -19,6 +19,13 @@ class UpdatePassword(BaseModel):
     username: str
     new_password: str
 
+class UpdateNoteRequest(BaseModel):
+    username: str
+    note: str
+
+class DeactivateUserRequest(BaseModel):
+    username: str
+
 # ✅ 註冊
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -71,7 +78,7 @@ def get_users(company_name: str = "", db: Session = Depends(get_db)):
         if company_name:
             query = query.filter(User.company_name == company_name)
         users = query.all()
-       return [
+        return [
             {
                 "id": u.id,
                 "username": u.username,
@@ -105,3 +112,23 @@ def update_password(data: UpdatePassword, db: Session = Depends(get_db)):
     user.password_hash = get_password_hash(data.new_password)
     db.commit()
     return {"message": "✅ 密碼更新成功"}
+
+# ✅ 更新備註
+@router.post("/update_note")
+def update_note(data: UpdateNoteRequest, db: Session = Depends(get_db)):
+    user = get_user_by_username(db, data.username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    user.note = data.note
+    db.commit()
+    return {"message": "✅ 備註已更新"}
+
+# ✅ 註銷帳號
+@router.post("/deactivate_user")
+def deactivate_user(data: DeactivateUserRequest, db: Session = Depends(get_db)):
+    user = get_user_by_username(db, data.username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    user.is_active = False
+    db.commit()
+    return {"message": "⛔️ 帳號已註銷"}
