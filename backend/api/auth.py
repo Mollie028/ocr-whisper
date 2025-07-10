@@ -60,6 +60,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = get_user_by_username(db, login_data.username)
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="⛔️ 帳號已被停用，請聯絡管理員")
 
     token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
     return {
@@ -91,7 +93,6 @@ def get_users(company_name: str = "", db: Session = Depends(get_db)):
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
-
 
 # ✅ 更新角色權限
 @router.post("/update_role")
