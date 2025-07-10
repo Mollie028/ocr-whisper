@@ -1,4 +1,3 @@
-# ✅ backend/api/auth.py
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -60,7 +59,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
     user = get_user_by_username(db, login_data.username)
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
-    if not user.is_active:
+
+    if hasattr(user, "is_active") and not user.is_active:
         raise HTTPException(status_code=403, detail="⛔️ 帳號已被停用，請聯絡管理員")
 
     token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
@@ -86,8 +86,8 @@ def get_users(company_name: str = "", db: Session = Depends(get_db)):
                 "username": u.username,
                 "is_admin": u.is_admin,
                 "company_name": u.company_name,
-                "note": getattr(u, "note", None),
-                "is_active": getattr(u, "is_active", True),
+                "note": getattr(u, "note", None) if hasattr(u, "note") else None,
+                "is_active": getattr(u, "is_active", True) if hasattr(u, "is_active") else True,
             }
             for u in users
         ]
@@ -120,9 +120,12 @@ def update_note(data: UpdateNoteRequest, db: Session = Depends(get_db)):
     user = get_user_by_username(db, data.username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    user.note = data.note
-    db.commit()
-    return {"message": "✅ 備註已更新"}
+    if hasattr(user, "note"):
+        user.note = data.note
+        db.commit()
+        return {"message": "✅ 備註已更新"}
+    else:
+        raise HTTPException(status_code=400, detail="⚠️ 備註功能未啟用，請聯絡管理員")
 
 # ✅ 註銷帳號
 @router.post("/deactivate_user")
@@ -130,6 +133,9 @@ def deactivate_user(data: DeactivateUserRequest, db: Session = Depends(get_db)):
     user = get_user_by_username(db, data.username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    user.is_active = False
-    db.commit()
-    return {"message": "⛔️ 帳號已註銷"}
+    if hasattr(user, "is_active"):
+        user.is_active = False
+        db.commit()
+        return {"message": "⛔️ 帳號已註銷"}
+    else:
+        raise HTTPException(status_code=400, detail="⚠️ 此資料庫不支援帳號註銷功能")
