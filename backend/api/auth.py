@@ -56,21 +56,28 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 # ✅ 登入
 @router.post("/login")
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    user = get_user_by_username(db, login_data.username)
-    if not user or not verify_password(login_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
+    try:
+        user = get_user_by_username(db, login_data.username)
+        if not user or not verify_password(login_data.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="❌ 帳號或密碼錯誤")
 
-    if hasattr(user, "is_active") and not user.is_active:
-        raise HTTPException(status_code=403, detail="⛔️ 帳號已被停用，請聯絡管理員")
+        # ✅ 改這裡：避免沒有 is_active 欄位而爆錯
+        if getattr(user, "is_active", True) is False:
+            raise HTTPException(status_code=403, detail="⛔️ 帳號已被停用，請聯絡管理員")
 
-    token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "is_admin": user.is_admin,
-        "company_name": user.company_name,
-        "role": "admin" if user.is_admin else "user"
-    }
+        token = create_access_token({"sub": user.username, "is_admin": user.is_admin})
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "is_admin": user.is_admin,
+            "company_name": user.company_name,
+            "role": "admin" if user.is_admin else "user"
+        }
+
+    except Exception as e:
+        print(traceback.format_exc())  # ✅ 記得印出錯誤方便除錯
+        raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
+
 
 # ✅ 取得所有使用者（可依公司過濾）
 @router.get("/get_users")
