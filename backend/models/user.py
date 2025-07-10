@@ -14,7 +14,7 @@ class User(Base):
     company_name = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    note = Column(String, nullable=True)  
+
 # --- 名片資料表（Card）---
 class Card(Base):
     __tablename__ = "business_cards"
