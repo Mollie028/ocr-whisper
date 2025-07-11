@@ -88,26 +88,24 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 
 # ✅ 取得所有使用者（可依公司過濾）
-@router.get("/get_users")
-def get_users(company_name: str = "", db: Session = Depends(get_db)):
+@router.get("/users")
+def get_users(db: Session = Depends(get_db)):
     try:
-        query = db.query(User)
-        if company_name:
-            query = query.filter(User.company_name == company_name)
-        users = query.all()
+        users = db.query(User).all()
         return [
             {
                 "id": u.id,
                 "username": u.username,
                 "is_admin": u.is_admin,
                 "company_name": u.company_name,
-                "note": getattr(u, "note", None) if hasattr(u, "note") else None,
-                "is_active": getattr(u, "is_active", True) if hasattr(u, "is_active") else True,
+                "note": getattr(u, "note", None),
+                "is_active": getattr(u, "is_active", True),
             }
             for u in users
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ 系統錯誤：{str(e)}")
+
 
 # ✅ 更新角色權限
 @router.post("/update_role")
