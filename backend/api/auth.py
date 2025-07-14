@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut
 from backend.core.security import get_password_hash, verify_password, create_access_token
-from backend.services.user_service import get_user_by_username
+from backend.services.user_service import get_user_by_username, get_all_users
 
 router = APIRouter()
 
@@ -46,3 +46,11 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "company_name": user.company_name,
         "role": "admin" if user.is_admin else "user"
     }
+
+# ✅ 新增：取得所有使用者帳號清單
+@router.get("/users", response_model=list[UserOut])
+def get_users(db: Session = Depends(get_db)):
+    users = get_all_users(db)
+    if not users:
+        return []
+    return users
