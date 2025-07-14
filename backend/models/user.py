@@ -47,6 +47,9 @@ class UserOut(BaseModel):
     id: int
     username: str
     is_admin: bool
+    company_name: str
+    is_active: bool
 
     class Config:
         orm_mode = True
+
