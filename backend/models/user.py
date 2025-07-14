@@ -10,8 +10,9 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False) 
     company_name = Column(String, nullable=False)
+    note = Column(String, nullable=True) 
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
 
