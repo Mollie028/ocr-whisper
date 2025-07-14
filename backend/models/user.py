@@ -49,6 +49,7 @@ class UserOut(BaseModel):
     is_admin: bool
     company_name: str
     is_active: bool
+    note: Optional[str] = None  # 如果有備註欄位
 
     class Config:
         orm_mode = True
