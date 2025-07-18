@@ -24,7 +24,6 @@ class Card(Base):
     __tablename__ = "business_cards"
 
     id = Column(Integer, primary_key=True, index=True)
-    image_url = Column(String, nullable=True)
     raw_text = Column(String, nullable=True)
     name = Column(String, nullable=True)
     phone = Column(String, nullable=True)
