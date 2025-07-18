@@ -23,7 +23,6 @@ async def ocr_card(file: UploadFile = File(...)):
 
         # 4. 建立 Card 物件（不包含 image_url 和 created_at）
         card = Card(
-            raw_text=text,
             name=fields.get("name", "未知"),
             phone=fields.get("phone", "未知"),
             email=fields.get("email", "未知"),
