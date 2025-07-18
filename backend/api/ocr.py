@@ -27,7 +27,7 @@ async def ocr_card(file: UploadFile = File(...)):
             email=fields.get("email", "未知"),
             phone=fields.get("phone", "未知"),
             company_name=fields.get("company_name", "未知"),
-            created_at=datetime.utcnow()  # 如果你的資料表有這欄位
+            
         )
 
         db.add(card)
