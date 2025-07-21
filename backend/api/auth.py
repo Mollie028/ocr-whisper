@@ -50,8 +50,15 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 # ✅ 新增：取得所有使用者帳號清單
 @router.get("/users", response_model=list[UserOut])
 def get_users(db: Session = Depends(get_db)):
-    users = get_all_users(db)
-    for u in users:
-        print("👤 user:", u.username, "| role:", u.role)
-    return users
+    try:
+        users = get_all_users(db)
+        for u in users:
+            print("🧑", u.username, "| role:", u.role)
+        return users
+    except Exception as e:
+        import traceback
+        print("❌ 錯誤發生在 /users：", e)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
+
 
