@@ -51,7 +51,7 @@ class UserOut(BaseModel):
     is_admin: bool
     company_name: str
     is_active: bool
-    role: str                       
+    role: Optional[str] = None       # ✅ 允許為 None
     note: Optional[str] = None
 
     class Config:
