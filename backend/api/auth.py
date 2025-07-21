@@ -51,6 +51,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 @router.get("/users", response_model=list[UserOut])
 def get_users(db: Session = Depends(get_db)):
     users = get_all_users(db)
-    if not users:
-        return []
+    for u in users:
+        print("👤 user:", u.username, "| role:", u.role)
     return users
+
