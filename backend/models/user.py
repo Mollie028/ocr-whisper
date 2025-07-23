@@ -58,3 +58,9 @@ class UserOut(BaseModel):
         orm_mode = True
 
 
+class UserUpdate(BaseModel):
+    note: str = ""
+    is_admin: bool = False
+    is_active: bool = True
+
+
