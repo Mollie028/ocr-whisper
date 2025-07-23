@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 from backend.models.user import User, UserCreate
 from backend.core.security import get_password_hash, verify_password
-
+from sqlalchemy.orm import Session
+from backend.models.user import User
+from typing import Optional
 
 # 查詢使用者 by username
 def get_user_by_username(db: Session, username: str):
@@ -43,3 +45,7 @@ def authenticate_user(db: Session, username: str, password: str):
 # 撈出所有使用者（給管理員帳號管理頁）
 def get_all_users(db: Session):
     return db.query(User).all()
+
+
+def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    return db.query(User).filter(User.id == user_id).first()
