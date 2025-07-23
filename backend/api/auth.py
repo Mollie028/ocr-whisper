@@ -1,10 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from backend.core.db import get_db
-from backend.models.user import User, UserCreate, UserLogin, UserOut
-from backend.core.security import get_password_hash, verify_password, create_access_token
-from backend.services.user_service import get_user_by_username, get_all_users
+from backend.models.user import User, UserCreate, UserLogin, UserOut, UserUpdate
+from backend.core.security import get_password_hash, verify_password, create_access_token, get_current_user
+from backend.services.user_service import get_user_by_username, get_all_users, get_user_by_id
 
 router = APIRouter()
 
@@ -47,7 +46,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "role": "admin" if user.is_admin else "user"
     }
 
-# ✅ 新增：取得所有使用者帳號清單
+# ✅ 取得所有使用者帳號清單
 @router.get("/users", response_model=list[UserOut])
 def get_users(db: Session = Depends(get_db)):
     try:
@@ -61,4 +60,29 @@ def get_users(db: Session = Depends(get_db)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
 
+# ✅ 新增：更新使用者資料（備註、權限、狀態）
+@router.put("/update_user/{user_id}")
+def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到使用者")
 
+    # 權限檢查：只能修改自己或是管理員可修改他人
+    if current_user.id != user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="⛔️ 權限不足，無法修改他人帳號")
+
+    # 不能修改管理員的權限與狀態（除非你是自己）
+    if user.is_admin and current_user.id != user.id:
+        raise HTTPException(status_code=403, detail="⛔️ 無法修改管理員帳號")
+
+    user.note = user_update.note
+    user.is_admin = user_update.is_admin
+    user.is_active = user_update.is_active
+
+    db.commit()
+    db.refresh(user)
+    return {
+        "message": "✅ 使用者資料已更新",
+        "user_id": user.id,
+        "username": user.username
+    }
