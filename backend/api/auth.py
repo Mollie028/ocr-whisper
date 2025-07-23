@@ -5,6 +5,7 @@ from backend.core.db import get_db
 from backend.models.user import User, UserCreate, UserLogin, UserOut, UserUpdate
 from backend.core.security import get_password_hash, verify_password, create_access_token, get_current_user
 from backend.services.user_service import get_user_by_username, get_all_users, get_user_by_id
+from typing import Optiona
 import traceback
 
 router = APIRouter()
