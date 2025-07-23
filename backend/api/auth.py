@@ -96,7 +96,7 @@ def update_user(
 # ✅ 更新密碼 API
 class PasswordUpdateRequest(BaseModel):
     new_password: str
-    old_password: str | None = None
+    old_password: Optional[str] = None
 
 @router.put("/update_user_password/{user_id}")
 def update_user_password(
