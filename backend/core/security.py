@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
+from backend.core.db import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
