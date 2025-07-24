@@ -59,6 +59,7 @@ def get_users(db: Session = Depends(get_db)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
 
+
 # ✅ 更新使用者基本資料
 @router.put("/update_user/{user_id}")
 def update_user(
@@ -79,7 +80,12 @@ def update_user(
 
         user.note = user_update.note or ""
         user.is_admin = bool(user_update.is_admin)
-        user.is_active = bool(user_update.is_active)
+
+        # ✅ 正確處理 is_active（避免 bool("停用") = True 的誤判）
+        if isinstance(user_update.is_active, str):
+            user.is_active = user_update.is_active == "啟用"
+        else:
+            user.is_active = bool(user_update.is_active)
 
         db.commit()
         db.refresh(user)
@@ -93,6 +99,7 @@ def update_user(
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="🚨 系統內部錯誤")
+
 
 # ✅ 更新密碼 API
 class PasswordUpdateRequest(BaseModel):
